@@ -1,0 +1,10 @@
+Calender/*
+.venv/*
+.env
+.DS_Store
+.idea/*
+.pytest_cache/*
+.ruff_cache/*
+.vscode/*
+demo_data/*
+Assets/*
