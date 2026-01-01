@@ -72,7 +72,3 @@ The text returned by the LLM is rendered in Streamlit using `st.info()`. This en
 ### 🎯 Strategic Value
 
 By using this flow, a company reduces the **"Time to Resolution"** for accounting errors from weeks to seconds. It replaces manual "document hunting" with AI-driven "story-finding."
-
----
-
-**Would you like me to help you add a "Download Investigation Report" button so the user can save Sleuth's findings as a PDF?**
