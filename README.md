@@ -1,31 +1,32 @@
-# 🕵️‍♂️ Sleuth: Don't Just Audit. Investigate.
+# 🕵️‍♂️ Sleuth: AI-Powered Forensic Accounting
 
-**Sleuth** is an AI-powered "Detective Accountant" designed to move corporate finance from reactive auditing to real-time investigation. Instead of just flagging a discrepancy, Sleuth digs through unstructured data—emails, Slack logs, and PDFs—to find the "story" behind the numbers.
+**Sleuth** is a "RAG-lite" forensic accounting tool designed to move corporate finance from reactive auditing to real-time investigation. Instead of just flagging a discrepancy between ledgers, Sleuth dynamically searches through unstructured data—emails, Slack logs, and official notices—to find the "story" behind the numbers.
 
-### 📖 Description
+### 📖 The Problem It Solves
+In traditional finance, reconciliation software identifies a variance (e.g., a $650 gap between a Vendor Ledger and an ERP Ledger). A human accountant must then spend hours hunting through inboxes and chat channels to find out *why* that gap exists. 
 
-In traditional finance, reconciliation software identifies a variance (e.g., a $10k gap), but a human must spend weeks investigating why it exists. **Sleuth** automates the investigation. It connects the "Numbers" (General Ledger) with the "Context" (Communications) to provide instant explanations and corrective actions.
+**Sleuth automates the investigation.** It connects the "Numbers" (Structured Ledgers) with the "Context" (Unstructured Communications) to provide instant explanations, root cause categorization, and ready-to-post Journal Entries.
 
-### 🏗 Basic Architecture
-
-Sleuth operates on a **Triple-Layer Truth** model:
-
-1. **The Comparison Layer:** Matches structured data from different ledgers to identify mismatches (Variances).
-2. **The Evidence Layer:** Ingests unstructured files (PDFs, .txt, .msg) from the "Evidence Locker."
-3. **The Reasoning Layer (Agentic):** An LLM acts as the lead investigator, reading the context to reconcile the variance and propose a fix.
+### ✨ Key Features
+* **Smart Context Filtering:** A custom Python-based filter that matches documents using Invoice IDs, Entity short-names, and float-rounded dollar amounts, preventing LLM hallucination and context-window overflow.
+* **Executive Dashboard:** Real-time metrics showing total transactions, flagged discrepancies, and total variance at risk.
+* **Batch Auditing:** Investigate the entire ledger at once with a single click and export the findings to a CSV report.
+* **Flexible Data Ingestion:** Use the built-in realistic data generator, or drag-and-drop your own CSV ledgers directly via the UI sidebar.
+* **Enterprise Formatting:** Outputs strict, scannable markdown reports including Confidence Scores, Root Causes, and formatted T-Account Journal Entries.
 
 ### 🛠 Tech Stack
-
 * **Language:** Python 3.x
-* **Environment Manager:** [uv](https://github.com/astral-sh/uv)
+* **Environment Manager:** [uv](https://github.com/astral-sh/uv) (for high-speed dependency resolution)
 * **Frontend:** Streamlit
-* **Intelligence:** OpenRouter / OpenAI (GPT-4o / Gemini 1.5 Pro)
+* **Intelligence:** OpenAI (GPT-4o)
 * **Data Handling:** Pandas
 
-### 👨‍💻 Developer
-
-* **Name:** RamBikkina
-* **Portfolio:** [RamTechSuite](https://ramc26.github.io/RamTechSuite)
-* **Focus:** Building AI agents and Automation solutions.
+### 🚀 How to Run
+1. Clone the repository and navigate to the directory.
+2. Initialize the environment: `uv init` and install dependencies (`streamlit`, `pandas`, `openai`, `python-dotenv`).
+3. Set your `OPENAI_API_KEY` in a `.env` file.
+4. Generate the realistic test data: `uv run demo_data.py`
+5. Launch the app: `uv run streamlit run main.py`
 
 ---
+**Developer:** RamBikkina | **Portfolio:** [RamTechSuite](https://ramc26.github.io/RamTechSuite)

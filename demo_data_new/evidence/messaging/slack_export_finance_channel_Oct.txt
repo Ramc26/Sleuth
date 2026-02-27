@@ -1,0 +1,37 @@
+```
+Slack Export for Account Management - Client Communication
+
+Channel: #client-zenith-logistics
+Date: 2023-10-11
+
+---
+
+[10:03 AM] Sarah Jenkins (Account Manager) @sarah.jenkins
+Hi team, I received a message from Zenith Logistics regarding invoice INV-1015. They have informed us that they will be deducting $1200 due to a 4-hour server outage, as per the SLA penalty terms.
+
+---
+
+[10:15 AM] Mark Thompson (Zenith Logistics) @mark.thompson
+Hi Sarah, just confirming that on invoice INV-1015, we will be deducting $1200 due to the server outage we experienced on 2023-10-05. This is in line with the Service Level Agreement terms we have in place. Please let us know if you need any further details.
+
+---
+
+[10:25 AM] Sarah Jenkins (Account Manager) @sarah.jenkins
+Thank you for confirming, Mark. We acknowledge the deduction of $1200 from invoice INV-1015. I’ll ensure our finance team updates the records accordingly. Please reach out if there are any other issues to address.
+
+---
+
+[10:30 AM] Mark Thompson (Zenith Logistics) @mark.thompson
+Thanks, Sarah. Appreciate your prompt attention to this matter. Have a great day!
+
+---
+
+[10:35 AM] Sarah Jenkins (Account Manager) @sarah.jenkins
+You too, Mark. Feel free to contact me anytime if you need further assistance.
+
+---
+
+End of Export
+
+Confidentiality Notice: This communication, including attachments, is for the sole use of the intended recipient(s) and may contain confidential and privileged information. Any unauthorized review, use, disclosure, or distribution is prohibited. If you are not the intended recipient, please contact the sender by reply email and destroy all copies of the original message.
+```
