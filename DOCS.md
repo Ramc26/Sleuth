@@ -1,45 +1,167 @@
 # 📘 Sleuth: Technical & Functional Deep-Dive
 
-This document outlines the internal architecture, data flow, and logic mechanisms that power the Sleuth application.
+This document explains how Sleuth works internally
+
+Sleuth started as a basic inference script. Now it has evolved into a clean, modular **Retrieval-Augmented Generation (RAG)** system built to scale for enterprise use.
 
 ---
 
-### 📂 Detailed File Breakdown
+## 📂 Modular Architecture & File Breakdown
 
-#### 1. `demo_data.py` (The Scenario Generator)
-This script does not just create random numbers; it builds a highly realistic, chaotic corporate data environment to stress-test the AI.
-* **Data Asymmetry:** It generates Vendor ledgers (System A) and ERP ledgers (System B) with shuffled rows and missing entries to mimic real-world system drops.
-* **Scenario Injection:** It deliberately injects specific accounting anomalies:
-  * *FX Variances* (Exchange rate shifts resulting in floating-point differences).
-  * *SLA Penalties* (Deductions communicated via Slack).
-  * *Indirect Clues* (Evidence that mentions the company and the dollar amount, but omits the Invoice ID).
-  * *Human Typos* (Transposition errors with zero supporting evidence).
-
-#### 2. `engine.py` (The Investigative Core)
-This handles the "RAG-lite" (Retrieval-Augmented Generation) pipeline. It acts as the bridge between the local file system and the LLM.
-* **The Smart Filter:** Before calling the LLM, a strict Python gatekeeper filters the evidence locker. It searches for:
-  1. Direct `Invoice ID` matches.
-  2. A combination of the `Entity Name` (or short-name) AND the exact `Variance Amount`.
-  * *Note on Floating-Point Math:* The engine actively rounds ledger variances to 2 decimal places to ensure string-matching succeeds even when Pandas generates numbers like `$649.9999999999964`.
-* **Prompt Engineering:** The LLM is constrained by a strict markdown template, forcing it to output specific sections (Executive Summary, Evidence Chain, Recommended Action, and a Markdown Table for Journal Entries) rather than conversational text.
-
-#### 3. `main.py` (The Command Center & UI)
-Built with Streamlit, this file manages state, user interaction, and layout.
-* **Dynamic Sourcing:** A sidebar allows users to either select pre-generated demo data or upload their own custom `.csv` files via drag-and-drop.
-* **Data Alignment (`Pandas Merge`):** Uses `pd.merge(on=["invoice_id", "entity", "date"])` to align disparate ledgers and calculate the `Variance` column.
-* **Investigation Board:** * *Single Mode:* Users can investigate a specific discrepancy via a dropdown.
-  * *Batch Mode:* Iterates through all flagged rows, runs the `investigate_variance` pipeline for each, and compiles a downloadable `sleuth_audit_report.csv`.
+Sleuth is structured clearly so each part has one responsibility.
 
 ---
 
-### ⚙️ The Logic Flow (Step-by-Step)
+### 1. `core/` (The Brain)
 
+This folder contains the main intelligence.
 
+* **`config.py`:**  
+  Stores environment variables and initializes core clients (`OpenAI` for reasoning and `QdrantClient` for vector storage).
 
-1. **Ingestion:** `main.py` loads Ledger A and Ledger B.
-2. **Detection:** Pandas calculates the variance. If `Variance != 0`, the row is flagged.
-3. **Trigger:** User clicks "Investigate" (or "Run Full Audit").
-4. **Retrieval (Local):** `engine.py` scans the `/evidence` directory and reads all `.txt` files into memory.
-5. **Filtering (Local):** The Smart Filter discards 90% of the files (the "noise"), keeping only documents mathematically or contextually linked to the specific variance.
-6. **Reasoning (Cloud):** The tightly filtered context is sent to GPT-4o with the strict forensic prompt.
-7. **Resolution:** The UI renders the LLM's Markdown response, highlighting the root cause and providing the exact Journal Entry needed to fix the ERP.
+* **`vector_store.py` (RAG Engine):**  
+  Handles semantic search. It converts unstructured evidence into vector embeddings using `FastEmbed`, stores them in **Qdrant**, and performs similarity search to retrieve relevant documents.
+
+* **`investigator.py` (LLM Agent):**  
+  Builds a strict markdown prompt. It combines structured ledger data with retrieved evidence and forces the LLM to return:
+  - Executive Summary  
+  - Root Cause  
+  - Journal Entry table  
+
+---
+
+### 2. `main.py` (UI & Control Layer)
+
+Built using Streamlit. This file handles user interaction and app flow.
+
+* **Database Management:**  
+  A button allows users to index new evidence into the Qdrant vector database.
+
+* **Dynamic Sourcing:**  
+  Users can choose demo data or upload custom `.csv` files.
+
+* **Investigation Board:**  
+  - *Single Mode:* Investigate one discrepancy interactively.  
+  - *Batch Mode:* Runs investigations on all flagged rows and generates `sleuth_audit_report.csv`.
+
+---
+
+### 3. `utilities/demo_data.py` (Scenario Generator)
+
+Creates realistic corporate data for testing.
+
+* **Data Asymmetry:**  
+  Generates mismatched Vendor (System A) and ERP (System B) ledgers with shuffled and missing rows.
+
+* **Scenario Injection:**  
+  Adds anomalies like FX variances, SLA penalties, missing invoice IDs, and human typos.
+
+---
+
+# 🧠 How RAG & Vector Search Works in Sleuth
+
+Traditional keyword matching (like checking if `"INV-101"` exists in text) is fragile.  
+It fails with typos, nicknames, or indirect descriptions.
+
+Sleuth uses **Semantic Vector Search** instead.
+
+---
+
+## 1. Vector Creation (Ingestion Phase)
+
+When the user clicks “Index Evidence to Qdrant”:
+
+- Each document is converted into a dense vector using `FastEmbed`.
+- A vector represents the *meaning* of the text.
+- Vectors + metadata (like filename) are stored in Qdrant.
+
+So we store meaning, not exact words.
+
+---
+
+## 2. Semantic Search (Retrieval Phase)
+
+When investigating a discrepancy:
+
+- Sleuth creates a search query using known details (invoice ID, entity, amount).
+- That query is converted into a vector.
+- Qdrant calculates cosine similarity between the query vector and stored document vectors.
+- Documents with similarity score > 0.50 are returned.
+- Top 3 most relevant documents are passed to the LLM.
+
+---
+
+## 💡 Example: Why This Matters
+
+Suppose there’s a **$650 discrepancy** for **Zenith Logistics**.
+
+A Slack message says:
+
+> “We docked six hundred and fifty dollars from the Zenith bill due to pallet damage.”
+
+**Keyword Search:**  
+Fails if searching for `"650"` or `"Zenith Logistics"`.
+
+**Vector Search:**  
+Understands:
+- "six hundred and fifty" = 650  
+- "Zenith" relates to "Zenith Logistics"  
+- The context explains a deduction  
+
+It retrieves the correct message.
+
+---
+
+# ⚙️ End-to-End Logic Flow
+
+1. **Structured Ingestion:**  
+   `main.py` loads Ledger A and Ledger B using Pandas.
+
+2. **Detection:**  
+   Variance is calculated (`System A - System B`).  
+   Rows where `Variance != 0` are flagged.
+
+3. **Unstructured Ingestion:**  
+   Evidence documents are embedded and stored in Qdrant.
+
+4. **Trigger:**  
+   User clicks “Investigate” on a flagged row.
+
+5. **Retrieval (RAG):**  
+   `vector_store.py` fetches top 3 semantically similar documents.
+
+6. **Reasoning (LLM):**  
+   `investigator.py` sends structured data + filtered evidence to GPT-4o using a strict template (`temperature = 0.0`).
+
+7. **Resolution:**  
+   Streamlit renders:
+   - Executive Summary  
+   - Root Cause  
+   - Source citations  
+   - Journal Entry  
+   Batch mode generates a downloadable report.
+
+---
+---
+
+### 🚀 Future Roadmap: Phase 2 (Hardening & Scale)
+
+To transition from MVP to a production-ready enterprise tool, the following features are scheduled for development:
+
+#### 1. Multi-Modal Evidence Processing (OCR)
+* **The Goal:** Handle scanned receipts, handwritten notes, and mobile photos.
+* **Tech:** Integration of `EasyOCR` or `AWS Textract` to process image-based evidence that lacks a digital text layer.
+
+#### 2. Archive & Attachment Extraction
+* **The Goal:** Automatically unpack `.zip` archives and `.msg` email attachments.
+* **Tech:** Recursive pre-processing layer to "flatten" nested data structures before indexing into Qdrant.
+
+#### 3. Temporal Search Weighting (Recency Bias)
+* **The Goal:** Prevent "Semantic Drift" where old documents with similar amounts trick the AI.
+* **Tech:** Implementing a decay function in Qdrant to prioritize evidence where the document metadata date matches the ledger transaction date.
+
+#### 4. ERP Integration (The "Close-the-Loop" Phase)
+* **The Goal:** Direct API hooks into SAP, NetSuite, or QuickBooks.
+* **Tech:** OAuth2 authentication to post approved Journal Entries directly to the General Ledger after human verification.
+Sleuth combines structured data, semantic retrieval, and controlled LLM reasoning  
+to deliver reliable, enterprise-ready audit investigations.

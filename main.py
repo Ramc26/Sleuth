@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import logging
 import os
-from engine import investigate_variance
+from core.investigator import investigate_variance
+from core.vector_store import index_evidence_to_qdrant
 
 # --- LOGGING SETUP ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -18,7 +19,7 @@ st.sidebar.header("📁 Select Ledgers")
 st.sidebar.markdown("Choose from generated demo data, or upload your own CSVs.")
 
 # Scan the demo folder for existing CSVs
-ledger_dir = "demo_data/ledgers"
+ledger_dir = "data/demo_data/ledgers"
 available_ledgers = []
 if os.path.exists(ledger_dir):
     available_ledgers = [f for f in os.listdir(ledger_dir) if f.endswith('.csv')]
@@ -34,6 +35,14 @@ st.sidebar.markdown("**Or Upload Custom CSVs:**")
 # File Uploaders (Drag and Drop)
 uploaded_file_a = st.sidebar.file_uploader("Upload System A", type=['csv'])
 uploaded_file_b = st.sidebar.file_uploader("Upload System B", type=['csv'])
+
+# --- SIDEBAR: DATABASE MANAGEMENT ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Database Management:**")
+if st.sidebar.button("🔄 Index Evidence to Qdrant", use_container_width=True):
+    with st.spinner("Embedding documents into Vector DB..."):
+        index_evidence_to_qdrant()
+        st.sidebar.success("Vector Database Updated!")
 
 # Logic to determine which files to use (Uploads override dropdowns)
 file_a_path_or_buffer = uploaded_file_a if uploaded_file_a else (os.path.join(ledger_dir, selected_file_a) if selected_file_a != "-- Select --" else None)
@@ -88,11 +97,10 @@ with col2:
             if st.button(f"Investigate {selected_inv}", width="stretch"):
                 row = mismatches[mismatches['invoice_id'] == selected_inv].iloc[0]
                 
-                with st.spinner("Sleuth is generating the standardized report..."):
+                with st.spinner("Sleuth is generating the standardized report using Vector Search..."):
                     report = investigate_variance(
                         row['invoice_id'], row['entity'], row['amount_SubA'], row['amount_SubB']
                     )
-                    # Streamlit markdown renders the LLM's new strict format beautifully
                     st.markdown(report)
         
         with tab2:
@@ -112,7 +120,7 @@ with col2:
                         "Invoice ID": row['invoice_id'],
                         "Entity": row['entity'],
                         "Variance ($)": row['Variance'],
-                        "Sleuth Finding": report # The markdown text goes into the CSV
+                        "Sleuth Finding": report 
                     })
                     progress_bar.progress((i + 1) / len(mismatches))
                 

@@ -1,0 +1,32 @@
+```
+From: Emily Johnson <emily.johnson@blueshifttech.com>
+Sent: Monday, October 16, 2023 9:32 AM
+To: David Smith <david.smith@blueshifttech.com>
+Cc: Accounting Department <accounting@blueshifttech.com>
+Subject: Explanation of Discrepancy in Invoice INV-BT-25
+
+Dear David,
+
+I hope this message finds you well. I am writing to address a discrepancy that has been identified in the recent invoice INV-BT-25, which amounts to $112.45. After a thorough review, we have determined that this discrepancy arose due to fluctuations in the GBP to USD exchange rate over the past weekend.
+
+As you are aware, exchange rates can be quite volatile, and the rate adjustment during the weekend resulted in a shift in the total amount due. Originally calculated under a different exchange rate, the invoice required adjustment to reflect the current rate accurately.
+
+To ensure transparency and clear understanding, I have attached a detailed breakdown of the exchange rate changes and their effect on the invoice total. Please review the attached document and feel free to reach out if you have any further questions or require additional clarification.
+
+We appreciate your understanding and cooperation regarding this matter. If there are any further concerns or if you need assistance with any other accounting matters, please do not hesitate to contact me directly.
+
+Thank you for your attention to this matter.
+
+Best regards,
+
+Emily Johnson  
+Senior Accountant  
+BlueShift Tech  
+Phone: (123) 456-7890  
+Email: emily.johnson@blueshifttech.com  
+Website: www.blueshifttech.com  
+
+Attachments:  
+1. Exchange_Rate_Adjustment_INV-BT-25.pdf
+
+```

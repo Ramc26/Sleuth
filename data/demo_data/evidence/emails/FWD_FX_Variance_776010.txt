@@ -1,0 +1,43 @@
+Subject: Explanation of Discrepancy on Invoice MF101
+
+Dear [Recipient's Name],
+
+I hope this message finds you well. I am writing to bring to your attention a discrepancy observed in the amount stated on Invoice MF101, dated [Invoice Date], due to recent fluctuations in the exchange rate between the British Pound (GBP) and the United States Dollar (USD).
+
+As per our records, the original amount invoiced was based on the exchange rate at the time of issuance. However, due to a shift in the GBP to USD exchange rate, a difference of $112.45 has arisen. This fluctuation has impacted the final settlement amount, and we wanted to ensure you are fully informed about the situation.
+
+Details are as follows:
+
+- **Invoice Number:** MF101
+- **Original Amount in GBP:** [Original GBP Amount]
+- **Converted Amount in USD (at original exchange rate):** [Original USD Amount]
+- **Converted Amount in USD (at current exchange rate):** [Current USD Amount]
+- **Discrepancy Amount:** $112.45
+
+We apologize for any inconvenience this may cause and assure you that our team is continuously monitoring exchange rate trends to minimize such occurrences. Please feel free to reach out if you have any questions or require further clarification regarding the matter.
+
+Additionally, if you need assistance in adjusting the payment or need to discuss the impact of this discrepancy on your financial records, please do not hesitate to contact me directly at [Your Phone Number] or [Your Email Address].
+
+Thank you for your understanding and continued partnership with Meridian Financial. We value your business and are committed to providing you with the highest level of service.
+
+Warm regards,
+
+[Your Full Name]  
+[Your Position]  
+Meridian Financial  
+[Your Contact Information]  
+[Company Website]  
+
+Please let me know how you would like to proceed with this matter, and if there is anything else we can assist you with.
+
+Best regards,
+
+[Your Full Name]  
+[Your Position]  
+Meridian Financial  
+[Your Email Address]  
+[Your Direct Phone Number]  
+
+---
+
+**Note:** This email is intended for the named recipient only and may contain confidential information. If you have received this email in error, please notify the sender immediately and delete it from your system.

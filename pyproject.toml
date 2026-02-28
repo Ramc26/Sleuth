@@ -8,5 +8,6 @@ dependencies = [
     "openai>=2.14.0",
     "pandas>=2.3.3",
     "python-dotenv>=1.2.1",
+    "qdrant-client[fastembed]>=1.17.0",
     "streamlit>=1.52.2",
 ]

@@ -8,3 +8,5 @@ Calender/*
 .vscode/*
 demo_data/*
 Assets/*
+qdrant_db
+qdrant_storage

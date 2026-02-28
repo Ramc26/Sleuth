@@ -1,0 +1,31 @@
+```
+From: Sarah Jenkins <sarah.jenkins@zenithlogistics.com>
+Date: October 10, 2023 at 10:45 AM
+To: Mark Thompson <mark.thompson@zenithlogistics.com>
+Cc: Accounting Department <accounting@zenithlogistics.com>
+Subject: Approval of $2500 Volume Discount - Invoice INV-1045
+
+---
+
+Hi Mark,
+
+I hope this message finds you well.
+
+I am writing to confirm the approval of a $2500 volume discount for our client, following their achievement of the tier-3 purchasing threshold. This adjustment pertains to invoice INV-1045, dated October 1, 2023.
+
+Please proceed with applying the discount to the invoice in our system. Ensure that the revised invoice reflects the updated total and is communicated to the client promptly. If there are any queries or if further action is required from my side, feel free to reach out.
+
+Thank you for your attention to this matter and for your continued diligence in managing our accounts.
+
+Best regards,
+
+Sarah Jenkins  
+Vice President of Sales  
+Zenith Logistics  
+Phone: (555) 123-4567  
+Email: sarah.jenkins@zenithlogistics.com  
+
+---
+
+[This email was generated automatically by ZenMail, the corporate email system of Zenith Logistics. If you have received this email in error, please notify the sender immediately and delete the message.]
+```
