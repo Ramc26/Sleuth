@@ -5,9 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "fastapi>=0.134.0",
+    "jinja2>=3.1.6",
     "openai>=2.14.0",
     "pandas>=2.3.3",
+    "pydantic>=2.12.5",
     "python-dotenv>=1.2.1",
+    "python-multipart>=0.0.22",
     "qdrant-client[fastembed]>=1.17.0",
     "streamlit>=1.52.2",
+    "uvicorn>=0.41.0",
 ]
