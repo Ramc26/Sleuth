@@ -1,0 +1,73 @@
+```plaintext
+                       LOAN AGREEMENT DEED
+
+This Loan Agreement Deed ("Agreement") is made at Thrissur on this 5th day of October, 2023.
+
+BETWEEN
+
+The South Indian Bank Limited, a banking company incorporated under the Companies Act, 1956, having its registered office at Thrissur, Kerala, hereinafter referred to as the "Lender" (which expression shall, unless repugnant to the context or meaning thereof, be deemed to include its successors and assigns) of the FIRST PART;
+
+AND
+
+Meenakshi Menon, daughter of Raghavan Menon, aged 35 years, residing at 'Lakshmi Vilas', MG Road, Thrissur, Kerala, hereinafter referred to as the "Borrower" (which expression shall, unless repugnant to the context or meaning thereof, be deemed to include her heirs, executors, administrators, and permitted assigns) of the SECOND PART.
+
+WHEREAS
+
+1. The Borrower has approached the Lender for a loan amount under Loan ID: SIB-LN-1005.
+2. The Lender has agreed to grant the said loan to the Borrower on the terms and conditions contained herein.
+
+NOW THIS AGREEMENT WITNESSETH AS FOLLOWS:
+
+1. LOAN AMOUNT
+   The Lender hereby agrees to lend and the Borrower hereby agrees to borrow a sum of INR 10,00,000 (Rupees Ten Lakhs Only) on the terms and conditions herein contained.
+
+2. INTEREST
+   The Borrower agrees to pay interest on the said loan amount at the rate of 9.5% per annum, calculated on a daily reducing balance method, notwithstanding the interest rate reflected in any computer system.
+
+3. REPAYMENT
+   The Borrower hereby agrees to repay the principal amount along with interest in 60 (sixty) equal monthly installments commencing on the 5th of November, 2023.
+
+4. SECURITY
+   As security for the due repayment of the loan amount, the Borrower hereby mortgages the property described in Schedule A hereunder. The Borrower has produced the Encumbrance Certificate, Pattayam, and Non-Litigation Certificate for the said property, confirming it is free from any encumbrances.
+
+5. SCHEDULE A
+   Property Details:
+   - Description: Residential Property
+   - Location: Survey No. 42/1A, Kakkanad, Ernakulam, Kerala
+   - Area: 1200 sq. ft.
+   - Document No. 234/2023, registered at the Sub Registrar Office, Kakkanad.
+
+6. EVENTS OF DEFAULT
+   If the Borrower fails to pay any installment or part thereof as and when due, or commits any breach of the terms and conditions herein contained, the Lender shall have the right to recall the entire loan amount forthwith.
+
+7. JURISDICTION
+   The courts in Thrissur, Kerala shall have exclusive jurisdiction to entertain any disputes arising out of or in relation to this Agreement.
+
+IN WITNESS WHEREOF, the parties hereto have executed this Agreement on the day and year first above written.
+
+Signed and Delivered by the within named:
+For and on behalf of the Lender:
+The South Indian Bank Limited
+Authorized Signatory
+
+Signature: _____________________
+Name: [Authorized Signatory Name]
+Designation: [Designation]
+
+Signed and Delivered by the within named:
+Borrower:
+Meenakshi Menon
+
+Signature: _____________________
+Name: Meenakshi Menon
+
+Witness 1:
+Name: Dr. Suresh Kumar
+Signature: _____________________
+Address: 'Aashirvad', MG Road, Thrissur
+
+Witness 2:
+Name: Anita Varma
+Signature: _____________________
+Address: 12/56, High Road, Thrissur
+```

@@ -1,0 +1,21 @@
+loan_account_id,customer_name,loan_type,disbursed_amount,interest_rate,collateral_status,location
+SIB-LN-1000,Customer_0,Agricultural Loan,6251737.55,10.5,Clean,Kottayam
+SIB-LN-1001,Customer_1,SME Business Loan,1077743.61,10.5,Clean,Thrissur
+SIB-LN-1002,Thomas Kurian,Commercial Property Loan,6817298.4,8.5,Clean,Kochi
+SIB-LN-1003,Customer_3,Commercial Property Loan,2843995.95,8.5,Clean,Thiruvananthapuram
+SIB-LN-1004,Customer_4,SME Business Loan,2940595.25,10.5,Clean,Thiruvananthapuram
+SIB-LN-1005,Meenakshi Menon,Commercial Property Loan,5671777.7,10.5,Clean,Palakkad
+SIB-LN-1006,Customer_6,Commercial Property Loan,6743843.02,10.5,Clean,Kottayam
+SIB-LN-1007,Customer_7,SME Business Loan,1961683.66,10.5,Clean,Thiruvananthapuram
+SIB-LN-1008,Rajesh Pillai,Agricultural Loan,4197398.15,12.0,Clean,Palakkad
+SIB-LN-1009,Customer_9,Gold Loan,5570053.49,10.5,Clean,Palakkad
+SIB-LN-1010,Customer_10,Gold Loan,1364530.34,8.5,Clean,Thiruvananthapuram
+SIB-LN-1011,Customer_11,SME Business Loan,3223058.82,12.0,Clean,Thiruvananthapuram
+SIB-LN-1012,Customer_12,Commercial Property Loan,5101448.92,12.0,Clean,Kozhikode
+SIB-LN-1013,Customer_13,SME Business Loan,2620777.79,8.5,Clean,Palakkad
+SIB-LN-1014,Customer_14,Agricultural Loan,6151775.69,10.5,Clean,Palakkad
+SIB-LN-1015,Customer_15,SME Business Loan,2866810.34,12.0,Clean,Kochi
+SIB-LN-1016,Customer_16,Gold Loan,7066303.59,8.5,Clean,Thrissur
+SIB-LN-1017,Customer_17,Commercial Property Loan,2473295.06,8.5,Clean,Thiruvananthapuram
+SIB-LN-1018,Customer_18,Commercial Property Loan,5771076.89,8.5,Clean,Kottayam
+SIB-LN-1019,Customer_19,Commercial Property Loan,4211395.03,12.0,Clean,Kozhikode
