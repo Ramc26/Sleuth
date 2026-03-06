@@ -10,3 +10,6 @@ demo_data/*
 Assets/*
 qdrant_db
 qdrant_storage
+Invoices/*
+static/uploads/
+core/__pycache__

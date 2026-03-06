@@ -4,6 +4,49 @@ from core.config import qdrant_client, COLLECTION_NAME
 
 logger = logging.getLogger("Sleuth.VectorStore")
 
+
+def get_qdrant_status() -> dict:
+    """
+    Returns a health dict for the Qdrant vector store.
+    {
+        "reachable": bool,
+        "collection_exists": bool,
+        "error": str | None   -- human-readable error message
+    }
+    """
+    try:
+        # A lightweight ping — just list collections
+        qdrant_client.get_collections()
+        reachable = True
+    except Exception as e:
+        return {
+            "reachable": False,
+            "collection_exists": False,
+            "error": (
+                "Cannot reach Qdrant. Make sure Docker is running and the Qdrant "
+                f"container is up on http://localhost:6333. Detail: {type(e).__name__}."
+            ),
+        }
+
+    try:
+        collection_exists = qdrant_client.collection_exists(COLLECTION_NAME)
+        return {
+            "reachable": True,
+            "collection_exists": collection_exists,
+            "error": None if collection_exists else (
+                f"Qdrant is reachable but the collection '{COLLECTION_NAME}' does not exist. "
+                "Click 'Sync Evidence Locker' to index your evidence files."
+            ),
+        }
+    except Exception as e:
+        return {
+            "reachable": True,
+            "collection_exists": False,
+            "error": f"Qdrant reachable but collection check failed: {type(e).__name__}.",
+        }
+
+
+
 def index_evidence_to_qdrant():
     """Reads the evidence folder and stores documents as vectors in Qdrant."""
     base_path = "data/demo_data/evidence"

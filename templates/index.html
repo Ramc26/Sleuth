@@ -1,116 +1,336 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sleuth | FinTech Investigator</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sleuth | Financial Forensics Platform</title>
+    <meta name="description"
+        content="AI-powered forensic accounting tool for invoice ingestion, ledger reconciliation, and audit reporting.">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
 
-<nav class="navbar navbar-dark bg-dark mb-4 py-3">
-    <div class="container-fluid px-4">
-        <span class="navbar-brand mb-0 h4 fw-bold">🕵️‍♂️ Sleuth</span>
-        <button id="indexDbBtn" class="btn btn-primary btn-sm rounded-pill px-3">🔄 Sync Evidence Locker</button>
-    </div>
-</nav>
-
-<div class="container-fluid px-4">
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-5">
-            <div class="card h-100">
-                <div class="card-body">
-                    <form id="uploadForm" class="row g-3 align-items-center">
-                        <div class="col-md-5">
-                            <label class="form-label small text-muted">System A (Vendor)</label>
-                            <input class="form-control form-control-sm" type="file" id="fileA" accept=".csv" required>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label small text-muted">System B (ERP)</label>
-                            <input class="form-control form-control-sm" type="file" id="fileB" accept=".csv" required>
-                        </div>
-                        <div class="col-md-2 mt-4 pt-2">
-                            <button type="submit" class="btn btn-dark btn-sm w-100">Reconcile</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-7">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <div class="card bg-primary text-white h-100">
-                        <div class="card-body">
-                            <h6 class="card-title opacity-75">Total Transactions</h6>
-                            <h2 id="metricTotal" class="mb-0 fw-bold">-</h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-danger text-white h-100">
-                        <div class="card-body">
-                            <h6 class="card-title opacity-75">Flagged Issues</h6>
-                            <h2 id="metricFlagged" class="mb-0 fw-bold">-</h2>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card bg-dark text-white h-100">
-                        <div class="card-body">
-                            <h6 class="card-title opacity-75">Variance at Risk</h6>
-                            <h2 id="metricRisk" class="mb-0 fw-bold">$-</h2>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-5">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 text-primary fw-bold">Investigation Board</h5>
-                </div>
-                <div class="card-body p-0 table-responsive" style="max-height: 600px;">
-                    <table class="table table-hover align-middle mb-0" id="discrepancyTable">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th>Invoice</th>
-                                <th>Entity</th>
-                                <th>Variance</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td colspan="4" class="text-center py-5 text-muted">Upload ledgers to begin reconciliation.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  SIDEBAR                                        -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">🕵️</div>
+            <div>
+                <div class="brand-name">Sleuth</div>
+                <div class="brand-tagline">Financial Forensics</div>
             </div>
         </div>
 
-        <div class="col-md-7">
-            <div class="card h-100 border-0 shadow-lg">
-                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
-                    <h5 class="mb-0 fw-bold">Forensic Report</h5>
-                    <span id="investigationStatus" class="badge rounded-pill bg-secondary px-3 py-2">Awaiting Selection</span>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Workflow</div>
+
+            <button class="nav-item active" id="navDataEntry" onclick="switchTab('data-entry')">
+                <span class="nav-icon">📄</span>
+                <div class="nav-text">
+                    <span class="nav-title">Data Entry</span>
+                    <span class="nav-sub">Invoice Ingestion</span>
                 </div>
-                <div class="card-body p-4 overflow-auto" id="reportContainer" style="max-height: 600px; background-color: #fff;">
-                    <div class="text-center py-5 text-muted">
-                        <h1 class="display-1 opacity-25">🕵️‍♂️</h1>
-                        <p class="mt-3">Select a flagged transaction from the board to initiate an AI investigation.</p>
+            </button>
+
+            <button class="nav-item" id="navAuditSuite" onclick="switchTab('audit-suite')">
+                <span class="nav-icon">🔍</span>
+                <div class="nav-text">
+                    <span class="nav-title">Audit Suite</span>
+                    <span class="nav-sub">Reconcile &amp; Investigate</span>
+                </div>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button id="indexDbBtn" class="sync-btn">
+                <span class="sync-btn-icon">⚡</span>
+                <span id="syncBtnText">Sync Evidence Locker</span>
+            </button>
+            <div class="sidebar-meta">Qdrant · GPT-4o · FastAPI</div>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!--  MAIN WORKSPACE                                  -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <main class="workspace">
+
+        <!-- ══ System Warning Banner (shown by JS if Qdrant is unhealthy) ══ -->
+        <div class="sys-warning" id="sysWarning" style="display:none;" role="alert">
+            <div class="sys-warning-icon">⚠️</div>
+            <div class="sys-warning-body">
+                <strong id="sysWarningTitle">Vector Store Offline</strong>
+                <span id="sysWarningMsg">Qdrant is not reachable.</span>
+            </div>
+            <div class="sys-warning-actions">
+                <button class="sys-warning-retry" id="sysWarningRetry" onclick="checkHealth()">Retry</button>
+                <button class="sys-warning-dismiss"
+                    onclick="document.getElementById('sysWarning').style.display='none'">✕</button>
+            </div>
+        </div>
+
+        <!-- ──────────────────────── -->
+        <!-- TAB 1: DATA ENTRY        -->
+        <!-- ──────────────────────── -->
+        <div class="tab-panel active" id="tab-data-entry">
+            <div class="panel-header">
+                <div>
+                    <h1 class="panel-title">Invoice Data Entry</h1>
+                    <p class="panel-subtitle">Upload one or more vendor PDF invoices — Sleuth extracts the data
+                        automatically and appends each one to your ledger.</p>
+                </div>
+            </div>
+
+            <!-- Dropzone -->
+            <div class="dropzone" id="invoiceDropzone">
+                <div class="dropzone-inner" id="dropzoneInner">
+                    <div class="dropzone-icon">📑</div>
+                    <div class="dropzone-title">Drop your PDF invoices here</div>
+                    <div class="dropzone-sub">Supports multiple files — or click to browse</div>
+                    <input type="file" id="invoiceFileInput" accept=".pdf" multiple hidden>
+                    <button class="dropzone-btn" onclick="document.getElementById('invoiceFileInput').click()">
+                        Choose PDF Files
+                    </button>
+                </div>
+            </div>
+
+            <!-- Queue Bar (shown when multiple files are queued) -->
+            <div class="queue-bar" id="queueBar" style="display:none;">
+                <div class="queue-progress-info">
+                    <span id="queueLabel">Processing <strong id="queueCurrent">1</strong> of <strong
+                            id="queueTotal">3</strong></span>
+                    <span class="queue-filenames" id="queueFilename"></span>
+                </div>
+                <div class="queue-track">
+                    <div class="queue-fill" id="queueFill"></div>
+                </div>
+                <div class="queue-files" id="queueFiles"></div>
+            </div>
+
+            <!-- Processing Skeleton (hidden by default) -->
+            <div class="processing-card" id="processingCard" style="display:none;">
+                <div class="processing-header">
+                    <div class="processing-status">
+                        <span class="pulse-dot"></span>
+                        <span id="processingLabel">Extracting invoice data…</span>
+                    </div>
+                </div>
+                <div class="skeleton-grid" id="skeletonGrid">
+                    <div class="skel-field">
+                        <div class="skel-label"></div>
+                        <div class="skel-val"></div>
+                    </div>
+                    <div class="skel-field">
+                        <div class="skel-label"></div>
+                        <div class="skel-val"></div>
+                    </div>
+                    <div class="skel-field">
+                        <div class="skel-label"></div>
+                        <div class="skel-val"></div>
+                    </div>
+                    <div class="skel-field">
+                        <div class="skel-label"></div>
+                        <div class="skel-val wide"></div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="/static/js/app.js"></script>
+            <!-- Extracted Data + PDF Viewer (hidden by default) -->
+            <div class="review-workspace" id="reviewWorkspace" style="display:none;">
+
+                <!-- Left: PDF Viewer -->
+                <div class="pdf-viewer-panel">
+                    <div class="pdf-viewer-header">
+                        <span class="pdf-viewer-title">📄 Source Document</span>
+                        <span class="pdf-viewer-filename" id="pdfViewerFilename"></span>
+                    </div>
+                    <div class="pdf-viewer-body">
+                        <embed id="pdfEmbed" src="" type="application/pdf" width="100%" height="100%">
+                        <div class="pdf-fallback" id="pdfFallback" style="display:none;">
+                            <div class="pdf-fallback-icon">📄</div>
+                            <p>Cannot preview this PDF in browser.<br>
+                                <a id="pdfDownloadLink" href="#" target="_blank">Open in new tab →</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Extracted Data Card -->
+                <div class="extracted-panel">
+                    <div class="extracted-card" id="extractedCard">
+                        <div class="extracted-header">
+                            <div class="extracted-badge">✅ Extraction Complete</div>
+                            <div class="extracted-actions-top">
+                                <button class="btn-reextract" id="reExtractBtn" title="Re-run AI extraction">
+                                    🔄 Re-extract
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="edit-notice" id="editNotice">
+                            <span>💡 Click any field below to edit before saving.</span>
+                        </div>
+
+                        <div class="extracted-grid">
+                            <div class="extracted-field">
+                                <span class="field-label">Invoice ID</span>
+                                <input class="field-input" id="extInvoiceId" type="text" placeholder="—">
+                            </div>
+                            <div class="extracted-field">
+                                <span class="field-label">Entity / Vendor</span>
+                                <input class="field-input" id="extEntity" type="text" placeholder="—">
+                            </div>
+                            <div class="extracted-field">
+                                <span class="field-label">Total Amount</span>
+                                <input class="field-input amount-input" id="extAmount" type="number" step="0.01"
+                                    placeholder="0.00">
+                            </div>
+                            <div class="extracted-field">
+                                <span class="field-label">Invoice Date</span>
+                                <input class="field-input" id="extDate" type="date" placeholder="YYYY-MM-DD">
+                            </div>
+                        </div>
+
+                        <div class="extracted-actions-bottom">
+                            <button class="btn-confirm" id="confirmSaveBtn">
+                                💾 Confirm &amp; Save to Ledger
+                            </button>
+                            <button class="btn-discard" id="discardBtn">
+                                Discard
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Toast notification -->
+                    <div class="save-toast" id="saveToast" style="display:none;"></div>
+                </div>
+
+            </div><!-- /review-workspace -->
+
+            <!-- Upload History -->
+            <div class="history-card" id="historyCard" style="display:none;">
+                <div class="history-header">Session Upload History</div>
+                <ul class="history-list" id="historyList"></ul>
+            </div>
+        </div>
+
+
+        <!-- ──────────────────────── -->
+        <!-- TAB 2: AUDIT SUITE       -->
+        <!-- ──────────────────────── -->
+        <div class="tab-panel" id="tab-audit-suite">
+            <div class="panel-header">
+                <div>
+                    <h1 class="panel-title">Audit Suite</h1>
+                    <p class="panel-subtitle">Upload both ledgers to reconcile, then click any discrepancy to run an AI
+                        forensic investigation.</p>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <div class="kpi-row">
+                <div class="kpi-card kpi-total">
+                    <div class="kpi-label">Total Transactions</div>
+                    <div class="kpi-value" id="metricTotal">—</div>
+                </div>
+                <div class="kpi-card kpi-flagged">
+                    <div class="kpi-label">Flagged Issues</div>
+                    <div class="kpi-value" id="metricFlagged">—</div>
+                </div>
+                <div class="kpi-card kpi-risk">
+                    <div class="kpi-label">Variance at Risk</div>
+                    <div class="kpi-value" id="metricRisk">$—</div>
+                </div>
+            </div>
+
+            <!-- Upload Controls -->
+            <div class="upload-controls-card">
+                <form id="reconcileForm">
+                    <div class="upload-row">
+                        <div class="upload-field">
+                            <label class="upload-label">
+                                <span class="upload-badge sys-a">SYS A</span>
+                                ZohoBooks / Vendor Ledger
+                            </label>
+                            <input type="file" class="file-input" id="fileA" accept=".csv" required>
+                        </div>
+                        <div class="upload-vs">VS</div>
+                        <div class="upload-field">
+                            <label class="upload-label">
+                                <span class="upload-badge sys-b">SYS B</span>
+                                ERP / Internal Record
+                            </label>
+                            <input type="file" class="file-input" id="fileB" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="reconcile-btn" id="reconcileBtn">
+                            ⚖️ Reconcile
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Board + Report (side-by-side) -->
+            <div class="audit-workspace">
+
+                <!-- Investigation Board -->
+                <div class="board-panel">
+                    <div class="board-header">
+                        <span class="board-title">Investigation Board</span>
+                        <span class="board-count" id="boardCount"></span>
+                    </div>
+                    <div class="board-body">
+                        <table class="board-table" id="discrepancyTable">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Entity</th>
+                                    <th>Status</th>
+                                    <th>Variance</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="boardTbody">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        Upload ledgers above to begin reconciliation.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Forensic Report -->
+                <div class="report-panel">
+                    <div class="report-header">
+                        <span class="report-title">Forensic Report</span>
+                        <span class="report-badge" id="investigationStatus">Awaiting Selection</span>
+                    </div>
+                    <div class="report-body" id="reportContainer">
+                        <div class="report-empty">
+                            <div class="report-empty-icon">🕵️‍♂️</div>
+                            <p>Select a flagged transaction from the board<br>to initiate an AI forensic investigation.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /audit-workspace -->
+        </div><!-- /tab-audit-suite -->
+
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/static/js/app.js"></script>
 </body>
+
 </html>
