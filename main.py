@@ -5,14 +5,16 @@ import logging
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+from typing import Optional
 
 from core.investigator import investigate_variance
 from core.vector_store import index_evidence_to_qdrant, get_qdrant_status
 from core.invoice_processor import process_invoice_to_ledger
+from core import zoho_client
 
 logger = logging.getLogger("Sleuth.API")
 
@@ -60,6 +62,15 @@ class InvestigateRequest(BaseModel):
     entity: str
     amount_a: float
     amount_b: float
+
+
+class PostToLedgerRequest(BaseModel):
+    invoice_id:     str
+    entity:         str
+    amount:         float
+    date:           str
+    billing_period: Optional[str] = None
+    target_csv:     str = "data/demo_data/ledgers/system_a_vendor_ledger.csv"
 
 
 # ─────────────────────────────────────────────
@@ -125,6 +136,153 @@ async def upload_invoice(
     result["pdf_url"] = f"/static/uploads/{safe_name}"
     return result
 
+
+@app.post("/api/post_to_ledger")
+async def post_to_ledger(req: PostToLedgerRequest):
+    """
+    Confirms an invoice: writes the 4 ledger fields to the local CSV
+    AND (if Zoho Books is connected) creates a Bill in Zoho Books.
+    """
+    ledger_row = {
+        "invoice_id": req.invoice_id,
+        "entity":     req.entity,
+        "amount":     req.amount,
+        "date":       req.date,
+    }
+    # ── Write to local CSV ───────────────────────────────────────────
+    try:
+        df = pd.DataFrame([ledger_row])
+        if not os.path.exists(req.target_csv):
+            os.makedirs(os.path.dirname(req.target_csv), exist_ok=True)
+            df.to_csv(req.target_csv, index=False)
+        else:
+            df.to_csv(req.target_csv, mode="a", header=False, index=False)
+        logger.info(f"Ledger row saved to CSV: {req.invoice_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"CSV write failed: {e}")
+
+    # ── Optionally post to Zoho Books ────────────────────────────────
+    zoho_result = None
+    zoho_status = zoho_client.get_zoho_status()
+    if zoho_status["connected"]:
+        try:
+            zoho_result = zoho_client.create_bill(req.model_dump())
+            logger.info(f"Bill created in Zoho Books: {zoho_result.get('bill_id')}")
+        except Exception as e:
+            logger.warning(f"Zoho Books bill creation failed (CSV already saved): {e}")
+            return {
+                "status":      "partial",
+                "csv_saved":   True,
+                "zoho_posted": False,
+                "zoho_error":  str(e),
+            }
+
+    return {
+        "status":      "success",
+        "csv_saved":   True,
+        "zoho_posted": zoho_result is not None,
+        "zoho_bill_id": zoho_result.get("bill_id") if zoho_result else None,
+    }
+
+
+@app.delete("/api/invoice_pdf")
+async def delete_invoice_pdf(pdf_url: str):
+    """
+    Deletes an uploaded PDF from static/uploads after the user confirms (posts) the invoice.
+    Only allows deletion of files inside UPLOADS_DIR to prevent directory traversal.
+    """
+    filename = os.path.basename(pdf_url)               # strip any path traversal
+    file_path = os.path.join(UPLOADS_DIR, filename)
+
+    if os.path.abspath(file_path).startswith(os.path.abspath(UPLOADS_DIR)):
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Deleted uploaded PDF: {filename}")
+            return {"status": "success", "message": f"{filename} removed."}
+        return {"status": "not_found"}
+
+    raise HTTPException(status_code=400, detail="Invalid path.")
+
+
+# ─────────────────────────────────────────────
+# Zoho Books OAuth
+# ─────────────────────────────────────────────
+
+@app.get("/zoho/auth/start")
+async def zoho_auth_start():
+    """Redirects the user to Zoho's consent page to begin OAuth."""
+    client_id    = os.getenv("ZOHO_CLIENT_ID", "")
+    redirect_uri = os.getenv("ZOHO_REDIRECT_URI", "http://localhost:8000/zoho/oauth/callback")
+    auth_url = (
+        f"https://accounts.zoho.in/oauth/v2/auth"
+        f"?response_type=code"
+        f"&client_id={client_id}"
+        # 👇 Corrected scope here: added ZohoBooks.accountants.READ
+        f"&scope=ZohoBooks.bills.CREATE,ZohoBooks.contacts.CREATE,ZohoBooks.contacts.READ,ZohoBooks.accountants.READ"
+        f"&redirect_uri={redirect_uri}"
+        f"&access_type=offline"
+        f"&prompt=consent"
+    )
+    return RedirectResponse(auth_url)
+
+
+@app.get("/zoho/oauth/callback")
+async def zoho_oauth_callback(code: str = None, error: str = None):
+    """
+    Handles the redirect from Zoho after user grants consent.
+    Exchanges the auth code for tokens and saves the refresh token to .env.
+    """
+    if error or not code:
+        return HTMLResponse(
+            f"<h3>Zoho OAuth Error</h3><p>{error or 'No code returned.'}</p>"
+            "<p><a href='/'>Return to Sleuth</a></p>",
+            status_code=400,
+        )
+    try:
+        zoho_client.exchange_code_for_tokens(code)
+        return RedirectResponse("/?zoho_connected=1")
+    except Exception as e:
+        logger.error(f"Zoho token exchange failed: {e}")
+        return HTMLResponse(
+            f"<h3>Token Exchange Failed</h3><p>{e}</p>"
+            "<p><a href='/'>Return to Sleuth</a></p>",
+            status_code=500,
+        )
+
+
+@app.get("/api/zoho/status")
+async def zoho_status():
+    """Returns the current Zoho Books connection status."""
+    return zoho_client.get_zoho_status()
+
+
+@app.post("/api/zoho/disconnect")
+async def zoho_disconnect():
+    """Clears the stored refresh token, disconnecting Zoho Books."""
+    zoho_client.disconnect_zoho()
+    return {"status": "disconnected"}
+
+
+@app.get("/api/zoho/debug")
+async def zoho_debug():
+    """
+    Debug endpoint — tests token refresh and Chart of Accounts lookup.
+    Returns the account_id that will be used for bill line items.
+    """
+    status = zoho_client.get_zoho_status()
+    if not status["connected"]:
+        return {"error": "Not connected", "status": status}
+    try:
+        token = zoho_client.get_access_token()
+        account_id = zoho_client.get_purchase_account_id(token)
+        return {
+            "status":     "ok",
+            "token":      token[:20] + "…",
+            "account_id": account_id,
+            "org_id":     status["org_id"],
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 # ─────────────────────────────────────────────
 # Tab 2 — Audit Suite

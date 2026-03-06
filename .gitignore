@@ -13,3 +13,4 @@ qdrant_storage
 Invoices/*
 static/uploads/
 core/__pycache__
+openapi-all

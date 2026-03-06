@@ -1,187 +1,234 @@
-# 🕵️‍♂️ Sleuth: AI-Powered Forensic Accounting Platform
+# Sleuth — AI-Powered Financial Forensics
 
-**Sleuth** is a production-grade financial forensics tool that takes you from a raw vendor PDF invoice all the way to a published AI audit report — in a single, guided workflow.
+Sleuth is an AI-powered forensic accounting tool that automates the full financial lifecycle — from invoice capture straight into your ERP, all the way through reconciliation and AI-driven audit investigation.
 
-Built on **FastAPI + custom Web UI**, it replaces the original Streamlit prototype with a premium two-tab application.
-
----
-
-## 📖 The Problem It Solves
-
-Most reconciliation tools only tell you **there's a mismatch** — e.g., a $650 difference between your Vendor Ledger and your ERP.
-
-They don't tell you *why*.
-
-**Sleuth does that digging automatically.** It connects:
-
-- **PDF Invoices** → AI-extracted ledger entries (GPT-4o JSON mode)
-- **Numbers** → Structured CSV ledgers (ZohoBooks vs. ERP)
-- **Context** → Emails, Slack logs, internal notices (Qdrant RAG)
-
-Using semantic vector search, Sleuth surfaces the root cause, evidence trail, and ready-to-post journal entries in a clean Markdown audit report.
+Built with FastAPI, GPT-4o, Qdrant, and Zoho Books.
 
 ---
 
-## ✨ Features
+## What it does
 
-### Tab 1 — Data Entry (Invoice Ingestion)
-- **Multi-PDF Upload Queue** — Drop one or many PDFs at once; a queue progress bar tracks each file
-- **AI Extraction** — GPT-4o extracts Invoice ID, Entity, Amount, and Date in JSON mode
-- **Side-by-Side PDF Viewer** — The source document is embedded alongside the extracted data so you can visually cross-verify
-- **Editable Fields** — Click any extracted field to correct it before saving
-- **🔄 Re-extract** — Re-run AI extraction on the same PDF if the result looks wrong
-- **Confirm & Save** — Appends the confirmed record to the System A (ZohoBooks) CSV ledger
-- **Session History** — Last 5 confirmed invoices shown in the sidebar
+Sleuth works in two focused workflows:
 
-### Tab 2 — Audit Suite (Reconciliation & Investigation)
-- **KPI Cards** — Total Transactions · Flagged Issues · Variance at Risk
-- **SYS A vs SYS B Reconciliation** — Upload both CSVs; all rows returned with 🔴 Discrepancy / 🟢 Matched status badges
-- **Forensic Investigation** — Click any flagged row to run a RAG-powered investigation using Qdrant + GPT-4o
-- **Markdown Audit Report** — Evidence chain, root cause analysis, journal entry table, AI confidence score — rendered live in the panel
+**Tab 1 — Invoice Capture (Data Entry)**
+Upload vendor invoice PDFs → GPT-4o extracts the key fields → you review and confirm → data gets written to your local ledger CSV *and* posted directly to Zoho Books as a Bill.
 
-### Infrastructure & Observability
-- **Startup Health Check** — On boot, Sleuth checks if Qdrant is reachable and if the evidence collection exists, logging warnings to the console
-- **Dashboard Warning Banner** — If Docker/Qdrant is offline, a persistent amber banner appears with a precise error and **Retry** button; auto-dismisses when healthy; polls every 30 s
-- **Clear Investigation Errors** — 503 responses for "Vector Store Offline" and "Evidence Locker Empty" surface actionable messages inside the Forensic Report panel instead of a generic error
-- **Qdrant Guard on Index** — `/api/index_db` also checks Qdrant before attempting to index
+**Tab 2 — Variance Analysis (Reconciliation & Audit)**
+Upload two ledger CSVs (e.g. your vendor ledger vs your ERP export) → Sleuth computes row-by-row variance → you click any discrepancy → GPT-4o runs a forensic RAG investigation against your evidence base stored in Qdrant.
 
 ---
 
-## 🛠 Tech Stack
+## Architecture
 
-| Layer | Technology |
-|---|---|
-| **Backend** | Python 3.x, FastAPI, Uvicorn |
-| **LLM** | OpenAI GPT-4o (JSON mode for extraction, RAG for investigation) |
-| **Vector DB** | Qdrant (Docker) + FastEmbed |
-| **PDF Processing** | PyMuPDF (`fitz`) |
-| **Data Processing** | Pandas (`pd.to_numeric` for safe float coercion) |
-| **Frontend** | HTML5, CSS3 (Inter Font), Bootstrap 5, jQuery, Marked.js |
-| **Environment** | `uv`, `python-dotenv` |
-
----
-
-## 🚀 Quickstart
-
-### 1️⃣ Clone & Install
-
-```bash
-git clone https://github.com/Ramc26/Sleuth.git
-cd Sleuth
-
-# Install dependencies
-uv add fastapi uvicorn jinja2 python-multipart pandas openai \
-       qdrant-client[fastembed] pymupdf python-dotenv
+```
+Browser UI (HTML + CSS + JS)
+        │
+        ▼
+FastAPI (main.py)          ← Python HTTP layer
+   ├── /api/upload_invoice   ← saves PDF, calls GPT-4o
+   ├── /api/post_to_ledger   ← writes CSV + posts Zoho Bill
+   ├── /api/reconcile        ← merges two CSVs, computes variance
+   ├── /api/investigate      ← RAG forensic report via Qdrant
+   ├── /api/index_db         ← indexes evidence files into Qdrant
+   └── /zoho/auth/start      ← kicks off OAuth 2.0 flow
+        │
+        ├── GPT-4o (OpenAI)         ← invoice extraction + forensic report
+        ├── Qdrant (Docker)         ← vector evidence store (cosine similarity)
+        └── Zoho Books (India DC)   ← bills + vendor contacts via REST API
 ```
 
-### 2️⃣ Add Environment Variables
+---
 
-Create a `.env` file in the root:
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Backend | Python 3.12, FastAPI, Uvicorn |
+| AI | OpenAI GPT-4o (JSON mode for extraction, free-form for investigation) |
+| Vector DB | Qdrant (self-hosted via Docker) + fastembed |
+| ERP | Zoho Books (India DC) — OAuth 2.0, Bills API, Contacts API, Chart of Accounts API |
+| PDF parsing | PyMuPDF (fitz) |
+| Data | Pandas |
+| Frontend | HTML5, CSS3, Bootstrap 5, jQuery, Marked.js, Font Awesome 6 |
+
+---
+
+## Quickstart
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/yourname/sleuth.git
+cd sleuth
+uv sync                       # or: pip install -r requirements.txt
+```
+
+### 2. Set up environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
 
 ```env
-OPENAI_API_KEY=your_api_key_here
+OPENAI_API_KEY=sk-...
+
+# Zoho Books (India DC)
+ZOHO_CLIENT_ID=1000.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ZOHO_CLIENT_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+ZOHO_ORG_ID=XXXXXXXXXX
+ZOHO_REDIRECT_URI=http://localhost:8000/zoho/oauth/callback
+ZOHO_REFRESH_TOKEN=       # auto-written after first OAuth — do not edit manually
 ```
 
-### 3️⃣ Start Qdrant (Docker Required)
-
-The forensic investigation engine requires a running Qdrant instance:
+### 3. Start Qdrant (for the investigation feature)
 
 ```bash
-docker run -p 6333:6333 -p 6334:6334 \
-    -v $(pwd)/qdrant_storage:/qdrant/storage:z \
-    qdrant/qdrant
+docker run -p 6333:6333 qdrant/qdrant
 ```
 
-> **Note:** The `-v` flag persists your vector data locally so it survives container restarts.
-
-> **Note:** If Docker is not running, the app will start normally but will display a warning banner on the dashboard and return clear error messages when you attempt to run an investigation.
-
-### 4️⃣ Generate Demo Data
-
-```bash
-uv run utilities/demo_data.py
-```
-
-### 5️⃣ Start the Server
+### 4. Start Sleuth
 
 ```bash
 uv run uvicorn main:app --reload
 ```
 
-On startup, Sleuth logs the Qdrant health status:
-```
-✅ Qdrant healthy — evidence collection found.
-# or
-⚠️  Qdrant is NOT reachable. Docker may be down.
-```
-
-### 6️⃣ Open the App
-
-**[http://localhost:8000](http://localhost:8000)**
+Open **http://localhost:8000**
 
 ---
 
-## 🗂 Workflow
+## Zoho Books Integration
 
+### Setting up OAuth
+
+Zoho Books is optional — if not connected, invoices are only saved to the local CSV.
+
+To connect:
+
+1. Create a **Self Client** in [Zoho API Console](https://api-console.zoho.in) → set redirect URI to `http://localhost:8000/zoho/oauth/callback`
+2. Copy your Client ID, Client Secret, and Org ID into `.env`
+3. Visit **http://localhost:8000/zoho/auth/start** in your browser
+4. Complete the Zoho consent screen
+5. You're redirected back to Sleuth — sidebar shows a green dot with your Org ID
+6. `ZOHO_REFRESH_TOKEN` is automatically written to `.env` — no further re-auth needed
+
+**Required OAuth scopes** (handled automatically by the app):
 ```
-Tab 1: Data Entry
-  ┌───────────────────────────────────────────────────────────┐
-  │  Drop PDF(s) → AI Extracts → Review + Edit → Save Ledger │
-  └───────────────────────────────────────────────────────────┘
-
-Tab 2: Audit Suite
-  ┌─────────────────────────────────────────────────────────────────┐
-  │  Upload SYS A + SYS B → Reconcile → Click Discrepancy          │
-  │  → AI searches Qdrant (emails, Slacks) → Forensic Report       │
-  └─────────────────────────────────────────────────────────────────┘
+ZohoBooks.bills.CREATE
+ZohoBooks.contacts.CREATE
+ZohoBooks.contacts.READ
+ZohoBooks.accountants.READ      ← needed to query Chart of Accounts for GL account_id
 ```
 
-**First time?**
-1. Click **⚡ Sync Evidence Locker** (sidebar) to index evidence files into Qdrant.
-2. Go to **Tab 1** and upload a vendor PDF invoice.
-3. Go to **Tab 2**, upload both CSV ledgers from `data/demo_data/ledgers/`, and click **Reconcile**.
-4. Click **Investigate** on any 🔴 Discrepancy row to generate the forensic report.
+> The `ZohoBooks.accountants.READ` scope is critical — without it, Sleuth can't resolve the expense account ID for bill line items, and Zoho will silently create bills with ₹0.00 payable.
+
+### What happens when you "Post to Ledger"
+
+1. The 4 core fields (`invoice_id`, `entity`, `amount`, `date`) are written to `system_a_vendor_ledger.csv`
+2. If Zoho is connected:
+   - Looks up or creates the vendor contact by name
+   - Resolves a purchase/expense GL account from your Chart of Accounts
+   - Creates a Bill with a line item carrying `account_id`, `rate`, `quantity`
+   - Sets `bill_number` = `reference_number` = the original invoice ID
+3. The toast shows the Zoho `bill_id` on success, or `CSV only` if not connected
+4. The uploaded PDF is deleted from `static/uploads/`
 
 ---
 
-## 📁 Project Structure
+## API Reference
 
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/` | Serves the UI |
+| `GET` | `/api/health` | Qdrant health check |
+| `POST` | `/api/upload_invoice` | Upload PDF → extract via GPT-4o |
+| `POST` | `/api/post_to_ledger` | Confirm invoice → write CSV + Zoho Bill |
+| `DELETE` | `/api/invoice_pdf` | Delete a temp PDF after posting |
+| `POST` | `/api/reconcile` | Compare two CSVs, return variance |
+| `POST` | `/api/investigate` | RAG forensic report for a discrepancy |
+| `POST` | `/api/index_db` | Sync evidence files into Qdrant |
+| `GET` | `/zoho/auth/start` | Start Zoho OAuth 2.0 flow |
+| `GET` | `/zoho/oauth/callback` | OAuth callback — exchanges code for tokens |
+| `GET` | `/api/zoho/status` | Returns `{connected, org_id}` |
+| `POST` | `/api/zoho/disconnect` | Clears stored refresh token |
+| `GET` | `/api/zoho/debug` | Debug: returns resolved `account_id` from Chart of Accounts |
+
+---
+
+## cURL Examples
+
+### Upload an invoice PDF
+
+```bash
+curl -X POST http://localhost:8000/api/upload_invoice \
+  -F "file=@invoice.pdf"
 ```
-Sleuth/
-├── main.py                   # FastAPI app (routes, lifespan health check)
-├── core/
-│   ├── config.py             # Qdrant client + collection config
-│   ├── invoice_processor.py  # PDF → JSON extraction (PyMuPDF + GPT-4o)
-│   ├── investigator.py       # RAG forensic investigation (GPT-4o)
-│   └── vector_store.py       # Qdrant indexing, search, & health check
-├── templates/
-│   └── index.html            # Two-tab UI with warning banner
-├── static/
-│   ├── css/style.css         # Premium FinTech styling (v2.1)
-│   ├── js/app.js             # State management, queue, health polling
-│   └── uploads/              # Uploaded PDFs (gitignored, served for viewer)
-├── data/demo_data/
-│   ├── ledgers/              # Sample CSVs (System A + System B)
-│   └── evidence/             # Emails, Slack logs, notices for RAG
-└── utilities/
-    └── demo_data.py          # Demo data generator
+
+### Post to ledger (CSV + Zoho)
+
+```bash
+curl -X POST http://localhost:8000/api/post_to_ledger \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoice_id": "INV-001",
+    "entity": "Amazon Web Services",
+    "amount": 4.11,
+    "date": "2024-08-03",
+    "billing_period": "Aug 2024"
+  }'
+```
+
+### Reconcile two ledgers
+
+```bash
+curl -X POST http://localhost:8000/api/reconcile \
+  -F "file_a=@system_a.csv" \
+  -F "file_b=@system_b.csv"
+```
+
+### Investigate a discrepancy
+
+```bash
+curl -X POST http://localhost:8000/api/investigate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoice_id": "INV-001",
+    "entity": "Amazon Web Services",
+    "amount_a": 4.11,
+    "amount_b": 5.00
+  }'
+```
+
+### Check Zoho connection status
+
+```bash
+curl http://localhost:8000/api/zoho/status
+# → {"connected": true, "org_id": "60066752082"}
+```
+
+### Debug Chart of Accounts lookup
+
+```bash
+curl http://localhost:8000/api/zoho/debug
+# → {"status": "ok", "account_id": "460000XXXXXXX", "org_id": "60066752082", ...}
 ```
 
 ---
 
-## ⚠️ Common Issues
+## Data Storage
 
-| Issue | Fix |
+| What | Where |
 |---|---|
-| `"Vector Store Offline"` banner on dashboard | Start the Qdrant Docker container (Step 3 above) |
-| `"Evidence Locker Empty"` banner | Click **⚡ Sync Evidence Locker** in the sidebar |
-| `❌ unsupported operand type(s) for -` on reconcile | Fixed in v2.1 — `pd.to_numeric()` coercion handles mixed-type CSVs |
-| PDF viewer blank in browser | Some browsers block embedded PDFs — use the **"Open in new tab →"** fallback link |
+| Uploaded PDFs (temp) | `static/uploads/` — deleted after posting |
+| Vendor ledger (SYS A) | `data/demo_data/ledgers/system_a_vendor_ledger.csv` |
+| Evidence files (for RAG) | `data/evidence/` |
+| OAuth refresh token | `.env` → `ZOHO_REFRESH_TOKEN` (auto-written) |
 
 ---
 
-**Developed by [Ram Bikkina](https://ramc26.github.io/RamTechSuite)**
+## Known Requirements
 
----
-
-*If reconciliation tools show the numbers, **Sleuth tells you the story behind them.** 🕵️‍♂️*
+- **Docker must be running** for the Investigation feature. Sleuth shows a clear error in the UI if Qdrant is unreachable.
+- **Zoho Org ID** must be filled in `.env` before connecting.
+- Zoho auth codes expire in ~60 seconds — always complete the OAuth flow in one go (the app handles everything automatically).

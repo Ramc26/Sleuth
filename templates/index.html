@@ -6,292 +6,364 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sleuth | Financial Forensics Platform</title>
     <meta name="description"
-        content="AI-powered forensic accounting tool for invoice ingestion, ledger reconciliation, and audit reporting.">
+        content="AI-powered forensic accounting — invoice capture, ledger reconciliation, and audit investigation.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  SIDEBAR                                        -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
     <aside class="sidebar" id="sidebar">
+
         <div class="sidebar-brand">
-            <div class="brand-icon">🕵️</div>
+            <div class="brand-mark"><i class="fa-solid fa-user-secret"></i></div>
             <div>
-                <div class="brand-name">Sleuth</div>
+                <div class="brand-name">SLEUTH</div>
                 <div class="brand-tagline">Financial Forensics</div>
             </div>
         </div>
 
         <nav class="sidebar-nav">
-            <div class="nav-section-label">Workflow</div>
+            <p class="nav-section-label">Navigation</p>
 
-            <button class="nav-item active" id="navDataEntry" onclick="switchTab('data-entry')">
-                <span class="nav-icon">📄</span>
+            <button class="nav-item active" id="navDataEntry" onclick="switchTab('capture')">
+                <i class="fa-solid fa-file-invoice nav-icon"></i>
                 <div class="nav-text">
-                    <span class="nav-title">Data Entry</span>
-                    <span class="nav-sub">Invoice Ingestion</span>
+                    <span class="nav-title">Invoice Capture</span>
+                    <span class="nav-sub">Document Ingestion</span>
                 </div>
             </button>
 
-            <button class="nav-item" id="navAuditSuite" onclick="switchTab('audit-suite')">
-                <span class="nav-icon">🔍</span>
+            <button class="nav-item" id="navAuditSuite" onclick="switchTab('analysis')">
+                <i class="fa-solid fa-magnifying-glass-chart nav-icon"></i>
                 <div class="nav-text">
-                    <span class="nav-title">Audit Suite</span>
-                    <span class="nav-sub">Reconcile &amp; Investigate</span>
+                    <span class="nav-title">Variance Analysis</span>
+                    <span class="nav-sub">Reconciliation &amp; Audit</span>
                 </div>
             </button>
         </nav>
 
         <div class="sidebar-footer">
+
+            <!-- Zoho Books Integration -->
+            <div class="zoho-section" id="zohoSection">
+                <div class="zoho-header">
+                    <img src="https://www.zohowebstatic.com/sites/default/files/u8896/zoho_logo_black.png"
+                        alt="Zoho Books" class="zoho-logo" onerror="this.style.display='none'">
+                    <span class="zoho-product">Zoho Books</span>
+                </div>
+                <div class="zoho-status" id="zohoStatus">
+                    <span class="zoho-dot dot-disconnected"></span>
+                    <span id="zohoStatusText">Checking…</span>
+                </div>
+                <div id="zohoConnectActions">
+                    <a href="/zoho/auth/start" class="btn-zoho-connect" id="zohoConnectBtn">
+                        <i class="fa-solid fa-plug"></i> Connect
+                    </a>
+                </div>
+                <div id="zohoDisconnectActions" style="display:none;">
+                    <button class="btn-zoho-disconnect" onclick="disconnectZoho()">
+                        <i class="fa-solid fa-plug-circle-xmark"></i> Disconnect
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
             <button id="indexDbBtn" class="sync-btn">
-                <span class="sync-btn-icon">⚡</span>
-                <span id="syncBtnText">Sync Evidence Locker</span>
+                <i class="fa-solid fa-database"></i>
+                <span id="syncBtnText">Sync Evidence Base</span>
             </button>
-            <div class="sidebar-meta">Qdrant · GPT-4o · FastAPI</div>
+            <div class="sidebar-meta">Qdrant &middot; GPT-4o &middot; FastAPI v2.2</div>
         </div>
+
     </aside>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  MAIN WORKSPACE                                  -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════ WORKSPACE ══════════════════════════════ -->
     <main class="workspace">
 
-        <!-- ══ System Warning Banner (shown by JS if Qdrant is unhealthy) ══ -->
+        <!-- System Health Banner -->
         <div class="sys-warning" id="sysWarning" style="display:none;" role="alert">
-            <div class="sys-warning-icon">⚠️</div>
+            <i class="fa-solid fa-triangle-exclamation sys-warning-icon"></i>
             <div class="sys-warning-body">
                 <strong id="sysWarningTitle">Vector Store Offline</strong>
                 <span id="sysWarningMsg">Qdrant is not reachable.</span>
             </div>
             <div class="sys-warning-actions">
-                <button class="sys-warning-retry" id="sysWarningRetry" onclick="checkHealth()">Retry</button>
+                <button class="sys-warning-retry" id="sysWarningRetry" onclick="checkHealth()">
+                    <i class="fa-solid fa-rotate"></i> Retry
+                </button>
                 <button class="sys-warning-dismiss"
-                    onclick="document.getElementById('sysWarning').style.display='none'">✕</button>
+                    onclick="document.getElementById('sysWarning').style.display='none'">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         </div>
 
-        <!-- ──────────────────────── -->
-        <!-- TAB 1: DATA ENTRY        -->
-        <!-- ──────────────────────── -->
-        <div class="tab-panel active" id="tab-data-entry">
+        <!-- ══════════════════════════════════════════
+         TAB: INVOICE CAPTURE
+    ══════════════════════════════════════════ -->
+        <div class="tab-panel active" id="tab-capture">
+
             <div class="panel-header">
                 <div>
-                    <h1 class="panel-title">Invoice Data Entry</h1>
-                    <p class="panel-subtitle">Upload one or more vendor PDF invoices — Sleuth extracts the data
-                        automatically and appends each one to your ledger.</p>
+                    <h1 class="panel-title">Document Ingestion</h1>
+                    <p class="panel-subtitle">Upload vendor invoice documents for automated data extraction and ledger
+                        posting.</p>
+                </div>
+                <div class="panel-header-actions">
+                    <span class="batch-counter" id="batchCounter" style="display:none;">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span id="batchCountText">0 / 0 processed</span>
+                    </span>
                 </div>
             </div>
 
-            <!-- Dropzone -->
-            <div class="dropzone" id="invoiceDropzone">
-                <div class="dropzone-inner" id="dropzoneInner">
-                    <div class="dropzone-icon">📑</div>
-                    <div class="dropzone-title">Drop your PDF invoices here</div>
-                    <div class="dropzone-sub">Supports multiple files — or click to browse</div>
+            <!-- Upload Zone -->
+            <div class="upload-zone" id="invoiceDropzone">
+                <div class="upload-zone-inner">
+                    <i class="fa-regular fa-file-pdf upload-zone-icon"></i>
+                    <div class="upload-zone-title">Drop invoice documents here</div>
+                    <div class="upload-zone-sub">Supports batch upload &mdash; all files are processed in parallel</div>
                     <input type="file" id="invoiceFileInput" accept=".pdf" multiple hidden>
-                    <button class="dropzone-btn" onclick="document.getElementById('invoiceFileInput').click()">
-                        Choose PDF Files
+                    <button class="btn-upload" onclick="document.getElementById('invoiceFileInput').click()">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i>
+                        Select Documents
                     </button>
                 </div>
             </div>
 
-            <!-- Queue Bar (shown when multiple files are queued) -->
-            <div class="queue-bar" id="queueBar" style="display:none;">
-                <div class="queue-progress-info">
-                    <span id="queueLabel">Processing <strong id="queueCurrent">1</strong> of <strong
-                            id="queueTotal">3</strong></span>
-                    <span class="queue-filenames" id="queueFilename"></span>
-                </div>
-                <div class="queue-track">
-                    <div class="queue-fill" id="queueFill"></div>
-                </div>
-                <div class="queue-files" id="queueFiles"></div>
-            </div>
+            <!-- Capture Workspace: Queue List + Detail Panel -->
+            <div class="capture-workspace" id="captureWorkspace" style="display:none;">
 
-            <!-- Processing Skeleton (hidden by default) -->
-            <div class="processing-card" id="processingCard" style="display:none;">
-                <div class="processing-header">
-                    <div class="processing-status">
-                        <span class="pulse-dot"></span>
-                        <span id="processingLabel">Extracting invoice data…</span>
+                <!-- LEFT: Invoice Queue List -->
+                <div class="queue-list-panel">
+                    <div class="queue-list-header">
+                        <span class="queue-list-title">
+                            <i class="fa-solid fa-list-check"></i> Processing Queue
+                        </span>
+                        <span class="queue-list-badge" id="queueListBadge"></span>
                     </div>
-                </div>
-                <div class="skeleton-grid" id="skeletonGrid">
-                    <div class="skel-field">
-                        <div class="skel-label"></div>
-                        <div class="skel-val"></div>
+                    <div class="queue-list-body" id="queueListBody">
+                        <!-- Invoice cards injected here -->
                     </div>
-                    <div class="skel-field">
-                        <div class="skel-label"></div>
-                        <div class="skel-val"></div>
-                    </div>
-                    <div class="skel-field">
-                        <div class="skel-label"></div>
-                        <div class="skel-val"></div>
-                    </div>
-                    <div class="skel-field">
-                        <div class="skel-label"></div>
-                        <div class="skel-val wide"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Extracted Data + PDF Viewer (hidden by default) -->
-            <div class="review-workspace" id="reviewWorkspace" style="display:none;">
-
-                <!-- Left: PDF Viewer -->
-                <div class="pdf-viewer-panel">
-                    <div class="pdf-viewer-header">
-                        <span class="pdf-viewer-title">📄 Source Document</span>
-                        <span class="pdf-viewer-filename" id="pdfViewerFilename"></span>
-                    </div>
-                    <div class="pdf-viewer-body">
-                        <embed id="pdfEmbed" src="" type="application/pdf" width="100%" height="100%">
-                        <div class="pdf-fallback" id="pdfFallback" style="display:none;">
-                            <div class="pdf-fallback-icon">📄</div>
-                            <p>Cannot preview this PDF in browser.<br>
-                                <a id="pdfDownloadLink" href="#" target="_blank">Open in new tab →</a>
-                            </p>
+                    <div class="queue-list-footer" id="historyCard" style="display:none;">
+                        <div class="history-label">
+                            <i class="fa-regular fa-clock"></i> Session Log
                         </div>
+                        <ul class="history-list" id="historyList"></ul>
                     </div>
                 </div>
 
-                <!-- Right: Extracted Data Card -->
-                <div class="extracted-panel">
-                    <div class="extracted-card" id="extractedCard">
-                        <div class="extracted-header">
-                            <div class="extracted-badge">✅ Extraction Complete</div>
-                            <div class="extracted-actions-top">
-                                <button class="btn-reextract" id="reExtractBtn" title="Re-run AI extraction">
-                                    🔄 Re-extract
+                <!-- RIGHT: Detail Panel -->
+                <div class="detail-panel" id="detailPanel">
+                    <div class="detail-empty" id="detailEmpty">
+                        <i class="fa-regular fa-file-lines detail-empty-icon"></i>
+                        <p>Select a document from the queue to review extracted data.</p>
+                    </div>
+
+                    <!-- Document Viewer -->
+                    <div class="detail-content" id="detailContent" style="display:none;">
+
+                        <!-- PDF Viewer -->
+                        <div class="doc-viewer">
+                            <div class="doc-viewer-header">
+                                <span class="doc-viewer-label">
+                                    <i class="fa-regular fa-file-pdf"></i> Source Document
+                                </span>
+                                <span class="doc-viewer-filename" id="detailFilename"></span>
+                            </div>
+                            <div class="doc-viewer-body">
+                                <embed id="pdfEmbed" src="" type="application/pdf" width="100%" height="100%">
+                            </div>
+                        </div>
+
+                        <!-- Extracted Fields -->
+                        <div class="extraction-panel">
+
+                            <div class="extraction-header">
+                                <span class="extraction-status-badge" id="extractionBadge">
+                                    <i class="fa-solid fa-circle-check"></i> Extraction Complete
+                                </span>
+                                <button class="btn-reprocess" id="reExtractBtn">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Re-process
                                 </button>
                             </div>
+
+                            <div class="extraction-notice">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                All fields are editable. Correct any extraction errors before posting.
+                            </div>
+
+                            <!-- Core Ledger Fields -->
+                            <div class="field-group-label">Ledger Fields</div>
+                            <div class="fields-grid">
+                                <div class="field-row">
+                                    <label class="field-lbl">Invoice Reference</label>
+                                    <input class="field-inp" id="extInvoiceId" type="text">
+                                </div>
+                                <div class="field-row">
+                                    <label class="field-lbl">Counterparty</label>
+                                    <input class="field-inp" id="extEntity" type="text">
+                                </div>
+                                <div class="field-row">
+                                    <label class="field-lbl">Invoice Amount</label>
+                                    <input class="field-inp mono" id="extAmount" type="number" step="0.01">
+                                </div>
+                                <div class="field-row">
+                                    <label class="field-lbl">Issue Date</label>
+                                    <input class="field-inp" id="extDate" type="date">
+                                </div>
+                            </div>
+
+                            <!-- Extended Fields (collapsed by default) -->
+                            <details class="extended-fields" id="extendedFieldsBlock">
+                                <summary class="field-group-label">
+                                    <i class="fa-solid fa-chevron-right toggle-icon"></i>
+                                    Extended Details
+                                </summary>
+                                <div class="fields-grid" style="margin-top:10px;">
+                                    <div class="field-row">
+                                        <label class="field-lbl">Billing Period</label>
+                                        <input class="field-inp" id="extBillingPeriod" type="text">
+                                    </div>
+                                    <div class="field-row">
+                                        <label class="field-lbl">Account Number</label>
+                                        <input class="field-inp mono" id="extAccountNumber" type="text">
+                                    </div>
+                                    <div class="field-row">
+                                        <label class="field-lbl">Currency</label>
+                                        <input class="field-inp mono" id="extCurrency" type="text" style="width:80px;">
+                                    </div>
+                                    <div class="field-row">
+                                        <label class="field-lbl">Tax</label>
+                                        <input class="field-inp mono" id="extTax" type="number" step="0.01">
+                                    </div>
+                                    <div class="field-row">
+                                        <label class="field-lbl">Credits Applied</label>
+                                        <input class="field-inp mono" id="extCredits" type="number" step="0.01">
+                                    </div>
+                                    <div class="field-row full-width">
+                                        <label class="field-lbl">Bill-To Address</label>
+                                        <input class="field-inp" id="extBillTo" type="text">
+                                    </div>
+                                </div>
+
+                                <!-- Service Breakdown -->
+                                <div class="field-group-label" style="margin-top:14px;">Service Breakdown</div>
+                                <div class="breakdown-table" id="breakdownTable">
+                                    <p class="breakdown-empty">No line items extracted.</p>
+                                </div>
+                            </details>
+
+                            <!-- Actions -->
+                            <div class="extraction-actions">
+                                <button class="btn-post" id="confirmSaveBtn">
+                                    <i class="fa-solid fa-check"></i> Post to Ledger
+                                </button>
+                                <button class="btn-reject" id="discardBtn">
+                                    <i class="fa-solid fa-xmark"></i> Reject
+                                </button>
+                            </div>
+
+                            <!-- Toast -->
+                            <div class="post-toast" id="saveToast" style="display:none;"></div>
                         </div>
 
-                        <div class="edit-notice" id="editNotice">
-                            <span>💡 Click any field below to edit before saving.</span>
-                        </div>
+                    </div><!-- /detail-content -->
+                </div><!-- /detail-panel -->
 
-                        <div class="extracted-grid">
-                            <div class="extracted-field">
-                                <span class="field-label">Invoice ID</span>
-                                <input class="field-input" id="extInvoiceId" type="text" placeholder="—">
-                            </div>
-                            <div class="extracted-field">
-                                <span class="field-label">Entity / Vendor</span>
-                                <input class="field-input" id="extEntity" type="text" placeholder="—">
-                            </div>
-                            <div class="extracted-field">
-                                <span class="field-label">Total Amount</span>
-                                <input class="field-input amount-input" id="extAmount" type="number" step="0.01"
-                                    placeholder="0.00">
-                            </div>
-                            <div class="extracted-field">
-                                <span class="field-label">Invoice Date</span>
-                                <input class="field-input" id="extDate" type="date" placeholder="YYYY-MM-DD">
-                            </div>
-                        </div>
-
-                        <div class="extracted-actions-bottom">
-                            <button class="btn-confirm" id="confirmSaveBtn">
-                                💾 Confirm &amp; Save to Ledger
-                            </button>
-                            <button class="btn-discard" id="discardBtn">
-                                Discard
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Toast notification -->
-                    <div class="save-toast" id="saveToast" style="display:none;"></div>
-                </div>
-
-            </div><!-- /review-workspace -->
-
-            <!-- Upload History -->
-            <div class="history-card" id="historyCard" style="display:none;">
-                <div class="history-header">Session Upload History</div>
-                <ul class="history-list" id="historyList"></ul>
-            </div>
-        </div>
+            </div><!-- /capture-workspace -->
+        </div><!-- /tab-capture -->
 
 
-        <!-- ──────────────────────── -->
-        <!-- TAB 2: AUDIT SUITE       -->
-        <!-- ──────────────────────── -->
-        <div class="tab-panel" id="tab-audit-suite">
+        <!-- ══════════════════════════════════════════
+         TAB: VARIANCE ANALYSIS
+    ══════════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-analysis">
+
             <div class="panel-header">
                 <div>
-                    <h1 class="panel-title">Audit Suite</h1>
-                    <p class="panel-subtitle">Upload both ledgers to reconcile, then click any discrepancy to run an AI
-                        forensic investigation.</p>
+                    <h1 class="panel-title">Ledger Reconciliation</h1>
+                    <p class="panel-subtitle">Upload both ledgers to compute variance, then open a case on any exception
+                        to run an AI investigation.</p>
                 </div>
             </div>
 
-            <!-- KPI Cards -->
+            <!-- KPI Row -->
             <div class="kpi-row">
                 <div class="kpi-card kpi-total">
-                    <div class="kpi-label">Total Transactions</div>
-                    <div class="kpi-value" id="metricTotal">—</div>
+                    <i class="fa-solid fa-table-list kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Transaction Count</div>
+                        <div class="kpi-value" id="metricTotal">&mdash;</div>
+                    </div>
                 </div>
                 <div class="kpi-card kpi-flagged">
-                    <div class="kpi-label">Flagged Issues</div>
-                    <div class="kpi-value" id="metricFlagged">—</div>
+                    <i class="fa-solid fa-circle-exclamation kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Exceptions Found</div>
+                        <div class="kpi-value" id="metricFlagged">&mdash;</div>
+                    </div>
                 </div>
                 <div class="kpi-card kpi-risk">
-                    <div class="kpi-label">Variance at Risk</div>
-                    <div class="kpi-value" id="metricRisk">$—</div>
+                    <i class="fa-solid fa-shield-exclamation kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Risk Exposure</div>
+                        <div class="kpi-value" id="metricRisk">$&mdash;</div>
+                    </div>
                 </div>
             </div>
 
             <!-- Upload Controls -->
-            <div class="upload-controls-card">
+            <div class="ledger-upload-card">
                 <form id="reconcileForm">
-                    <div class="upload-row">
-                        <div class="upload-field">
-                            <label class="upload-label">
-                                <span class="upload-badge sys-a">SYS A</span>
-                                ZohoBooks / Vendor Ledger
+                    <div class="ledger-upload-row">
+                        <div class="ledger-upload-field">
+                            <label class="ledger-upload-label">
+                                <span class="sys-badge sys-a">SYS A</span>
+                                Primary Ledger &mdash; ZohoBooks / Vendor
                             </label>
                             <input type="file" class="file-input" id="fileA" accept=".csv" required>
                         </div>
-                        <div class="upload-vs">VS</div>
-                        <div class="upload-field">
-                            <label class="upload-label">
-                                <span class="upload-badge sys-b">SYS B</span>
-                                ERP / Internal Record
+                        <div class="vs-divider">VS</div>
+                        <div class="ledger-upload-field">
+                            <label class="ledger-upload-label">
+                                <span class="sys-badge sys-b">SYS B</span>
+                                Reference Ledger &mdash; ERP / Internal
                             </label>
                             <input type="file" class="file-input" id="fileB" accept=".csv" required>
                         </div>
-                        <button type="submit" class="reconcile-btn" id="reconcileBtn">
-                            ⚖️ Reconcile
+                        <button type="submit" class="btn-reconcile" id="reconcileBtn">
+                            <i class="fa-solid fa-scale-balanced"></i> Reconcile
                         </button>
                     </div>
                 </form>
             </div>
 
-            <!-- Board + Report (side-by-side) -->
-            <div class="audit-workspace">
+            <!-- Variance Log + Audit Investigation side-by-side -->
+            <div class="analysis-workspace">
 
-                <!-- Investigation Board -->
-                <div class="board-panel">
-                    <div class="board-header">
-                        <span class="board-title">Investigation Board</span>
-                        <span class="board-count" id="boardCount"></span>
+                <!-- Left: Variance Log (table) -->
+                <div class="variance-panel">
+                    <div class="variance-panel-header">
+                        <span class="vp-title">
+                            <i class="fa-solid fa-list-ul"></i> Variance Log
+                        </span>
+                        <span class="vp-badge" id="boardCount"></span>
                     </div>
-                    <div class="board-body">
-                        <table class="board-table" id="discrepancyTable">
+                    <div class="variance-panel-body">
+                        <table class="variance-table" id="discrepancyTable">
                             <thead>
                                 <tr>
-                                    <th>Invoice</th>
-                                    <th>Entity</th>
+                                    <th>Reference</th>
+                                    <th>Counterparty</th>
                                     <th>Status</th>
                                     <th>Variance</th>
                                     <th></th>
@@ -300,7 +372,8 @@
                             <tbody id="boardTbody">
                                 <tr>
                                     <td colspan="5" class="empty-state">
-                                        Upload ledgers above to begin reconciliation.
+                                        <i class="fa-regular fa-folder-open"></i>
+                                        Upload ledger files to begin reconciliation.
                                     </td>
                                 </tr>
                             </tbody>
@@ -308,23 +381,25 @@
                     </div>
                 </div>
 
-                <!-- Forensic Report -->
-                <div class="report-panel">
-                    <div class="report-header">
-                        <span class="report-title">Forensic Report</span>
-                        <span class="report-badge" id="investigationStatus">Awaiting Selection</span>
+                <!-- Right: Audit Investigation panel -->
+                <div class="audit-panel">
+                    <div class="audit-panel-header">
+                        <span class="ap-title">
+                            <i class="fa-solid fa-file-waveform"></i> Audit Investigation
+                        </span>
+                        <span class="ap-status" id="investigationStatus">Awaiting Selection</span>
                     </div>
-                    <div class="report-body" id="reportContainer">
-                        <div class="report-empty">
-                            <div class="report-empty-icon">🕵️‍♂️</div>
-                            <p>Select a flagged transaction from the board<br>to initiate an AI forensic investigation.
+                    <div class="audit-panel-body" id="reportContainer">
+                        <div class="audit-empty">
+                            <i class="fa-solid fa-user-secret audit-empty-icon"></i>
+                            <p>Select an exception from the Variance Log to<br>initiate an AI-assisted investigation.
                             </p>
                         </div>
                     </div>
                 </div>
 
-            </div><!-- /audit-workspace -->
-        </div><!-- /tab-audit-suite -->
+            </div><!-- /analysis-workspace -->
+        </div><!-- /tab-analysis -->
 
     </main>
 
