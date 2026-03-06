@@ -47,6 +47,14 @@
                     <span class="nav-sub">Reconciliation &amp; Audit</span>
                 </div>
             </button>
+
+            <button class="nav-item" id="navPayroll" onclick="switchTab('payroll')">
+                <i class="fa-solid fa-users nav-icon"></i>
+                <div class="nav-text">
+                    <span class="nav-title">Payroll Engine</span>
+                    <span class="nav-sub">Attendance &rarr; Salaries</span>
+                </div>
+            </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -400,6 +408,415 @@
 
             </div><!-- /analysis-workspace -->
         </div><!-- /tab-analysis -->
+
+        <!-- ══════════════════════════════════════════
+         TAB: PAYROLL ENGINE
+        ══════════════════════════════════════════ -->
+        <div class="tab-panel" id="tab-payroll">
+
+            <div class="panel-header">
+                <div>
+                    <h1 class="panel-title">Payroll Engine</h1>
+                    <p class="panel-subtitle">Upload the monthly attendance CSV to auto-calculate salaries, deductions, and statutory contributions for all Anchors.</p>
+                </div>
+                <div class="panel-header-actions">
+                    <button class="btn-formula-cfg" onclick="toggleFcPanel()" title="Edit formula parameters">
+                        <i class="fa-solid fa-sliders"></i> Formula Config
+                    </button>
+                    <div id="payrollHeaderActions" style="display:none;display:inline-flex;gap:8px;align-items:center">
+                        <button class="btn-dl" onclick="downloadPayroll()">
+                            <i class="fa-solid fa-file-csv"></i> Export Payroll
+                        </button>
+                        <button class="btn-dl btn-dl-sec" onclick="downloadLeaveBalance()">
+                            <i class="fa-solid fa-calendar-check"></i> Export Leave Balance
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Formula Config Panel ──────────────────────────── -->
+            <div class="fc-panel" id="fcPanel" style="display:none;">
+                <div class="fc-panel-header">
+                    <div class="fc-panel-title">
+                        <i class="fa-solid fa-sliders"></i>
+                        Formula Configuration
+                        <span class="fc-custom-badge" id="fcCustomBadge" style="display:none;">
+                            <i class="fa-solid fa-circle-exclamation"></i> Custom Config Active
+                        </span>
+                    </div>
+                    <div class="fc-panel-actions">
+                        <button class="fc-btn-reset" onclick="resetPayrollConfig()">
+                            <i class="fa-solid fa-rotate-left"></i> Reset to Defaults
+                        </button>
+                        <button class="fc-btn-save" onclick="savePayrollConfig()">
+                            <i class="fa-solid fa-floppy-disk"></i> Save Config
+                        </button>
+                        <button class="fc-btn-close" onclick="toggleFcPanel(false)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="fc-panel-body">
+                    <!-- Salary Slabs -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-indian-rupee-sign"></i> Salary Slabs</div>
+                        <div class="fc-grid fc-grid-3">
+                            <div class="fc-field-group">
+                                <div class="fc-slab-label">Standard Anchor</div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Monthly ₹</label>
+                                    <input class="fc-inp" type="number" id="fc_anchor_std" step="1">
+                                </div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Basic %</label>
+                                    <input class="fc-inp" type="number" id="fc_anchor_basic_pct" step="0.01" min="0" max="1">
+                                    <label class="fc-lbl" style="margin-left:8px">HRA %</label>
+                                    <input class="fc-inp" type="number" id="fc_anchor_hra_pct" step="0.01" min="0" max="1">
+                                </div>
+                            </div>
+                            <div class="fc-field-group">
+                                <div class="fc-slab-label">AMIA / Maternity</div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Monthly ₹</label>
+                                    <input class="fc-inp" type="number" id="fc_amia_std" step="1">
+                                </div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Basic %</label>
+                                    <input class="fc-inp" type="number" id="fc_amia_basic_pct" step="0.01" min="0" max="1">
+                                    <label class="fc-lbl" style="margin-left:8px">HRA %</label>
+                                    <input class="fc-inp" type="number" id="fc_amia_hra_pct" step="0.01" min="0" max="1">
+                                </div>
+                            </div>
+                            <div class="fc-field-group">
+                                <div class="fc-slab-label">Asset</div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Monthly ₹</label>
+                                    <input class="fc-inp" type="number" id="fc_asset_std" step="1">
+                                </div>
+                                <div class="fc-row">
+                                    <label class="fc-lbl">Basic %</label>
+                                    <input class="fc-inp" type="number" id="fc_asset_basic_pct" step="0.01" min="0" max="1">
+                                    <label class="fc-lbl" style="margin-left:8px">HRA %</label>
+                                    <input class="fc-inp" type="number" id="fc_asset_hra_pct" step="0.01" min="0" max="1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EPF / PF -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-building-columns"></i> EPF &amp; PF</div>
+                        <div class="fc-grid fc-grid-4">
+                            <div class="fc-field">
+                                <label class="fc-lbl">EPF Wage Ceiling ₹</label>
+                                <input class="fc-inp" type="number" id="fc_epf_ceiling" step="500">
+                                <span class="fc-hint">ROUND(IF(GrossForPF &gt; ceiling, ceiling, GrossForPF), 0)</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Employee Rate (12%)</label>
+                                <input class="fc-inp" type="number" id="fc_epf_emp_rate" step="0.001" min="0" max="1">
+                                <span class="fc-hint">ROUND(IF(GrossForPF &gt; 15000, 1800, GrossForPF × rate), 0)</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Pension / EPS Rate (8.33%)</label>
+                                <input class="fc-inp" type="number" id="fc_epf_pension_rate" step="0.001" min="0" max="1">
+                                <span class="fc-hint">ROUND(PF_emp / emp_rate × pension_rate, 0)</span>
+                            </div>
+                            <div class="fc-field fc-formula-note">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>PF Employer (3.67%) = PF Employee &minus; Pension (auto-derived)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ESI -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-shield-heart"></i> ESI</div>
+                        <div class="fc-grid fc-grid-4">
+                            <div class="fc-field">
+                                <label class="fc-lbl">Employee Rate (0.75%)</label>
+                                <input class="fc-inp" type="number" id="fc_esi_emp_rate" step="0.001" min="0" max="1">
+                                <span class="fc-hint">ROUNDUP((FinalGross − Gratuity) × rate, 0)</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Employer Rate (3.25%)</label>
+                                <input class="fc-inp" type="number" id="fc_esi_emp_rate2" step="0.001" min="0" max="1">
+                                <span class="fc-hint">(FinalGross − Gratuity) × rate  [not rounded]</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Exemption Threshold ₹</label>
+                                <input class="fc-inp" type="number" id="fc_esi_exempt" step="500">
+                                <span class="fc-hint">IF(StdSalary &gt; threshold, 0, ESI applied)</span>
+                            </div>
+                            <div class="fc-field fc-formula-note">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span>ESI applies to employees with Standard Salary ≤ exemption threshold</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profession Tax -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-landmark"></i> Profession Tax Slabs</div>
+                        <div class="fc-ptax-wrap">
+                            <div class="fc-ptax-hint">Applied on (FinalGross − Gratuity). Slabs checked from highest to lowest.</div>
+                            <div id="fcPtaxSlabs" class="fc-ptax-slabs"></div>
+                            <button class="fc-btn-add-slab" onclick="addPtaxSlab()">
+                                <i class="fa-solid fa-plus"></i> Add Slab
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bonus & Gratuity -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-gift"></i> Bonus &amp; Gratuity</div>
+                        <div class="fc-grid fc-grid-4">
+                            <div class="fc-field">
+                                <label class="fc-lbl">Month Days (divisor)</label>
+                                <input class="fc-inp" type="number" id="fc_month_days" step="1" min="28" max="31">
+                                <span class="fc-hint">StdSalary / month_days × PayableDays</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Bonus Threshold Day</label>
+                                <input class="fc-inp" type="number" id="fc_bonus_threshold" step="1" min="1" max="31">
+                                <span class="fc-hint">Resigned on/after this day → full-month bonus</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Gratuity Min. Service (years)</label>
+                                <input class="fc-inp" type="number" id="fc_grat_min_years" step="1" min="1">
+                                <span class="fc-hint">ROUND((DOE−DOJ)/365, 0) ≥ this value</span>
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Gratuity Formula  ( ÷ divisor × multiplier × yrs )</label>
+                                <div class="fc-row">
+                                    <input class="fc-inp" type="number" id="fc_grat_divisor" step="1" min="1" style="width:70px">
+                                    <span style="padding:0 6px;color:var(--text-2)">÷ div ×</span>
+                                    <input class="fc-inp" type="number" id="fc_grat_multiplier" step="1" min="1" style="width:70px">
+                                </div>
+                                <span class="fc-hint">ROUND(BasicSalary × multiplier / divisor × Years, 0)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Leave Accrual -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-calendar-days"></i> Leave Accrual (per month)</div>
+                        <div class="fc-grid fc-grid-4">
+                            <div class="fc-field">
+                                <label class="fc-lbl">CL accrual</label>
+                                <input class="fc-inp" type="number" id="fc_accrual_cl" step="0.25">
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">SL accrual</label>
+                                <input class="fc-inp" type="number" id="fc_accrual_sl" step="0.25">
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">EL accrual</label>
+                                <input class="fc-inp" type="number" id="fc_accrual_el" step="0.25">
+                            </div>
+                            <div class="fc-field">
+                                <label class="fc-lbl">Extra EL accrual</label>
+                                <input class="fc-inp" type="number" id="fc_accrual_extra_el" step="0.25">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LWF -->
+                    <div class="fc-section">
+                        <div class="fc-section-title"><i class="fa-solid fa-handshake"></i> Other</div>
+                        <div class="fc-grid fc-grid-4">
+                            <div class="fc-field">
+                                <label class="fc-lbl">LWF (Labour Welfare Fund) ₹</label>
+                                <input class="fc-inp" type="number" id="fc_lwf" step="1" min="0">
+                                <span class="fc-hint">Fixed deduction per employee</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /fc-panel-body -->
+
+                <div class="fc-save-toast" id="fcSaveToast" style="display:none;"></div>
+            </div><!-- /fc-panel -->
+
+            <!-- Upload Zone -->
+            <div class="payroll-upload-zone" id="payrollUploadZone">
+                <div class="upload-zone-inner">
+                    <i class="fa-solid fa-table upload-zone-icon"></i>
+                    <div class="upload-zone-title">Drop Anchor-Attendance CSV here</div>
+                    <div class="upload-zone-sub">Same format as the monthly attendance sheet &mdash; system calculates everything automatically</div>
+                    <input type="file" id="payrollFileInput" accept=".csv" hidden>
+                    <button class="btn-upload" onclick="document.getElementById('payrollFileInput').click()">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i> Select Attendance CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Processing state -->
+            <div class="payroll-processing" id="payrollProcessing" style="display:none;">
+                <div class="payroll-proc-spinner"></div>
+                <div>
+                    <div class="payroll-proc-title">Processing attendance data&hellip;</div>
+                    <div class="payroll-proc-sub">Calculating payable days, salaries, EPF, ESI, gratuity&hellip;</div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div id="payrollResults" style="display:none;">
+
+                <!-- KPI Row -->
+                <div class="pr-kpi-row">
+                    <div class="pr-kpi-card pr-kpi-blue">
+                        <div class="pr-kpi-icon"><i class="fa-solid fa-users"></i></div>
+                        <div>
+                            <div class="pr-kpi-label">Active Anchors</div>
+                            <div class="pr-kpi-value" id="pkActive">&mdash;</div>
+                            <div class="pr-kpi-sub" id="pkHeadcountSub"></div>
+                        </div>
+                    </div>
+                    <div class="pr-kpi-card pr-kpi-green">
+                        <div class="pr-kpi-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                        <div>
+                            <div class="pr-kpi-label">Total Gross Payable</div>
+                            <div class="pr-kpi-value mono" id="pkGross">&mdash;</div>
+                            <div class="pr-kpi-sub" id="pkGrossSub"></div>
+                        </div>
+                    </div>
+                    <div class="pr-kpi-card pr-kpi-accent">
+                        <div class="pr-kpi-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                        <div>
+                            <div class="pr-kpi-label">Total Net Pay-Out</div>
+                            <div class="pr-kpi-value mono" id="pkNet">&mdash;</div>
+                            <div class="pr-kpi-sub" id="pkNetSub"></div>
+                        </div>
+                    </div>
+                    <div class="pr-kpi-card pr-kpi-amber">
+                        <div class="pr-kpi-icon"><i class="fa-solid fa-building-columns"></i></div>
+                        <div>
+                            <div class="pr-kpi-label">Total Statutory (EPF+ESI)</div>
+                            <div class="pr-kpi-value mono" id="pkStatutory">&mdash;</div>
+                            <div class="pr-kpi-sub" id="pkStatutorySub"></div>
+                        </div>
+                    </div>
+                    <div class="pr-kpi-card pr-kpi-purple">
+                        <div class="pr-kpi-icon"><i class="fa-solid fa-briefcase"></i></div>
+                        <div>
+                            <div class="pr-kpi-label">Total Cost To Company</div>
+                            <div class="pr-kpi-value mono" id="pkCTC">&mdash;</div>
+                            <div class="pr-kpi-sub" id="pkCTCSub"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Secondary stats strip -->
+                <div class="pr-stats-strip" id="pkStatsStrip"></div>
+
+                <!-- Toolbar -->
+                <div class="payroll-toolbar">
+                    <div class="payroll-toolbar-left">
+                        <div class="pr-filter-group">
+                            <label class="pr-filter-label"><i class="fa-solid fa-filter"></i> Status</label>
+                            <select class="pr-select" id="filterStatus" onchange="applyPayrollFilters()">
+                                <option value="">All</option>
+                                <option value="Active">Active</option>
+                                <option value="Resigned">Resigned</option>
+                                <option value="Maternity">Maternity</option>
+                                <option value="Long Leave">Long Leave</option>
+                            </select>
+                        </div>
+                        <div class="pr-filter-group">
+                            <label class="pr-filter-label"><i class="fa-solid fa-building"></i> Dept</label>
+                            <select class="pr-select" id="filterDept" onchange="applyPayrollFilters()">
+                                <option value="">All</option>
+                            </select>
+                        </div>
+                        <div class="pr-filter-group">
+                            <label class="pr-filter-label"><i class="fa-solid fa-magnifying-glass"></i></label>
+                            <input class="pr-search" id="payrollSearch" type="text"
+                                placeholder="Search EMP ID or email&hellip;" oninput="applyPayrollFilters()">
+                        </div>
+                    </div>
+                    <div class="payroll-toolbar-right">
+                        <span class="pr-col-toggle-label">Show:</span>
+                        <button class="pr-col-btn active" data-group="contact"    onclick="toggleColGroup(this)">Contact</button>
+                        <button class="pr-col-btn active" data-group="attendance" onclick="toggleColGroup(this)">Attendance</button>
+                        <button class="pr-col-btn active" data-group="leave"      onclick="toggleColGroup(this)">Leave Bal</button>
+                        <button class="pr-col-btn active" data-group="salary"     onclick="toggleColGroup(this)">Salary</button>
+                        <button class="pr-col-btn active" data-group="deductions" onclick="toggleColGroup(this)">Deductions</button>
+                        <button class="pr-col-btn active" data-group="employer"   onclick="toggleColGroup(this)">Employer</button>
+                    </div>
+                </div>
+
+                <!-- Payroll Table -->
+                <div class="payroll-table-wrap">
+                    <table class="payroll-table" id="payrollTable">
+                        <thead>
+                            <tr>
+                                <!-- Fixed -->
+                                <th class="th-fixed">#</th>
+                                <th class="th-fixed">EMP ID</th>
+                                <th class="th-fixed">Status</th>
+                                <!-- Contact group -->
+                                <th data-group="contact">Email</th>
+                                <th data-group="contact">Mobile</th>
+                                <th data-group="contact">DOJ</th>
+                                <th data-group="contact">DOE</th>
+                                <th data-group="contact">Dept / Project</th>
+                                <!-- Attendance group -->
+                                <th data-group="attendance" class="th-num">Present</th>
+                                <th data-group="attendance" class="th-num">W/O</th>
+                                <th data-group="attendance" class="th-num">Leave</th>
+                                <th data-group="attendance" class="th-num">HFL</th>
+                                <th data-group="attendance" class="th-num">ML</th>
+                                <th data-group="attendance" class="th-num">UL</th>
+                                <th data-group="attendance" class="th-num">LOP</th>
+                                <th data-group="attendance" class="th-num">Payable Days</th>
+                                <!-- Leave Balance group -->
+                                <th data-group="leave" class="th-num">Open CL</th>
+                                <th data-group="leave" class="th-num">Open SL</th>
+                                <th data-group="leave" class="th-num">Open EL</th>
+                                <th data-group="leave" class="th-num">Close CL</th>
+                                <th data-group="leave" class="th-num">Close SL</th>
+                                <th data-group="leave" class="th-num">Close EL</th>
+                                <!-- Salary group (always visible core) -->
+                                <th data-group="salary" class="th-num th-money">Std Salary</th>
+                                <th data-group="salary" class="th-num th-money">Curr Salary</th>
+                                <th data-group="salary" class="th-num th-money">Bonus</th>
+                                <th data-group="salary" class="th-num th-money">Gratuity</th>
+                                <th class="th-num th-money th-highlight">Final Gross</th>
+                                <!-- Deductions group -->
+                                <th data-group="deductions" class="th-num">EPF (12%)</th>
+                                <th data-group="deductions" class="th-num">ESI (0.75%)</th>
+                                <th data-group="deductions" class="th-num">Prof Tax</th>
+                                <th data-group="deductions" class="th-num th-editable" title="Click to edit TDS per employee">TDS ✎</th>
+                                <th data-group="deductions" class="th-num th-editable" title="Click to edit Insurance Advance per employee">Insurance ✎</th>
+                                <th data-group="deductions" class="th-num th-editable" title="Click to edit Other Advance per employee">Other Adv ✎</th>
+                                <th data-group="deductions" class="th-num">Total Ded.</th>
+                                <!-- Net — always visible -->
+                                <th class="th-num th-money th-net">Net Salary</th>
+                                <!-- Employer group -->
+                                <th data-group="employer" class="th-num">Pension (8.33%)</th>
+                                <th data-group="employer" class="th-num">PF Emp (3.67%)</th>
+                                <th data-group="employer" class="th-num">ESI Emp (3.25%)</th>
+                                <th data-group="employer" class="th-num">Total Employer</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payrollTbody">
+                            <tr>
+                                <td colspan="39" class="empty-state">
+                                    <i class="fa-regular fa-folder-open"></i>
+                                    Upload attendance CSV to generate payroll.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Row count -->
+                <div class="pr-row-count" id="prRowCount"></div>
+
+            </div><!-- /payrollResults -->
+        </div><!-- /tab-payroll -->
 
     </main>
 

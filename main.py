@@ -5,16 +5,26 @@ import logging
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
+import io
+
 from core.investigator import investigate_variance
 from core.vector_store import index_evidence_to_qdrant, get_qdrant_status
 from core.invoice_processor import process_invoice_to_ledger
 from core import zoho_client
+from core.payroll_engine import (
+    process_attendance_csv,
+    generate_payroll_csv,
+    generate_leave_balance_csv,
+    _load_config,
+    _default_config,
+    save_config,
+)
 
 logger = logging.getLogger("Sleuth.API")
 
@@ -379,6 +389,92 @@ async def run_investigation(req: InvestigateRequest):
             )
         logger.error(f"Investigation error: {e}")
         raise HTTPException(status_code=500, detail=f"Investigation failed: {err_msg}")
+
+
+# ─────────────────────────────────────────────
+# Tab 3 — Payroll Engine
+# ─────────────────────────────────────────────
+
+# In-memory store for the last processed payroll (used by download endpoints)
+_last_payroll: dict = {}
+
+
+@app.get("/api/payroll/config")
+async def get_payroll_config():
+    """Return the current formula configuration."""
+    return _load_config()
+
+
+@app.post("/api/payroll/config")
+async def update_payroll_config(payload: dict):
+    """Save updated formula configuration."""
+    try:
+        # Basic validation — ensure key sections are present
+        required = ["month_days", "salary_slabs", "epf", "esi", "profession_tax_slabs"]
+        for key in required:
+            if key not in payload:
+                raise HTTPException(status_code=400, detail=f"Missing required config key: {key}")
+        save_config(payload)
+        return {"status": "saved", "message": "Formula configuration saved successfully."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save config: {e}")
+
+
+@app.post("/api/payroll/config/reset")
+async def reset_payroll_config():
+    """Reset formula configuration to built-in defaults."""
+    defaults = _default_config()
+    save_config(defaults)
+    return {"status": "reset", "config": defaults}
+
+
+@app.post("/api/payroll/process")
+async def process_payroll(attendance_file: UploadFile = File(...)):
+    """
+    Accepts the Anchor-Attendance CSV, runs the payroll engine using
+    the current formula_config.json, returns full breakdown and summary.
+    """
+    if not attendance_file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are accepted.")
+    try:
+        contents = await attendance_file.read()
+        buf = io.BytesIO(contents)
+        cfg = _load_config()
+        result = process_attendance_csv(buf, cfg=cfg)
+        global _last_payroll
+        _last_payroll = result
+        return {"status": "success", **result}
+    except Exception as e:
+        logger.error(f"Payroll processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Payroll processing failed: {e}")
+
+
+@app.get("/api/payroll/download/payroll")
+async def download_payroll_csv():
+    """Download the full payroll output as a CSV."""
+    if not _last_payroll:
+        raise HTTPException(status_code=404, detail="No payroll data. Run /api/payroll/process first.")
+    csv_data = generate_payroll_csv(_last_payroll["employees"])
+    return StreamingResponse(
+        io.StringIO(csv_data),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=payroll_output.csv"},
+    )
+
+
+@app.get("/api/payroll/download/leave_balance")
+async def download_leave_balance_csv():
+    """Download the closing leave balance CSV (input for next month)."""
+    if not _last_payroll:
+        raise HTTPException(status_code=404, detail="No payroll data. Run /api/payroll/process first.")
+    csv_data = generate_leave_balance_csv(_last_payroll["employees"])
+    return StreamingResponse(
+        io.StringIO(csv_data),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=closing_leave_balance.csv"},
+    )
 
 
 @app.post("/api/index_db")

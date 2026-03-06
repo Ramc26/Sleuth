@@ -60,7 +60,7 @@ function switchTab(tabKey) {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${tabKey}`).classList.add('active');
-    const navMap = { capture: 'navDataEntry', analysis: 'navAuditSuite' };
+    const navMap = { capture: 'navDataEntry', analysis: 'navAuditSuite', payroll: 'navPayroll' };
     document.getElementById(navMap[tabKey]).classList.add('active');
 }
 
@@ -635,3 +635,566 @@ function disconnectZoho() {
             alert('Disconnect failed.');
         });
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TAB 3 — PAYROLL ENGINE
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── State ──────────────────────────────────────────────────────── */
+const Payroll = {
+    allRows: [],        // full dataset from API
+    filtered: [],       // after filters applied
+    hiddenGroups: {},   // group → bool
+};
+
+/* ── Upload trigger ─────────────────────────────────────────────── */
+$(function () {
+
+    /* Drag & drop on payroll upload zone */
+    const $pz = $('#payrollUploadZone');
+
+    $pz.on('dragover dragenter', e => { e.preventDefault(); $pz.css('border-color', 'var(--accent)'); })
+       .on('dragleave', ()      => $pz.css('border-color', ''))
+       .on('drop', e => {
+           e.preventDefault();
+           $pz.css('border-color', '');
+           const file = e.originalEvent.dataTransfer.files[0];
+           if (file && file.name.endsWith('.csv')) processPayrollFile(file);
+       });
+
+    $('#payrollFileInput').on('change', function () {
+        if (this.files[0]) processPayrollFile(this.files[0]);
+        this.value = '';
+    });
+});
+
+/* ── Upload & process ───────────────────────────────────────────── */
+function processPayrollFile(file) {
+    $('#payrollUploadZone').hide();
+    $('#payrollProcessing').show();
+    $('#payrollResults').hide();
+    $('#payrollHeaderActions').hide();
+
+    const fd = new FormData();
+    fd.append('attendance_file', file);
+
+    $.ajax({
+        url: '/api/payroll/process',
+        type: 'POST',
+        data: fd,
+        processData: false,
+        contentType: false,
+        success: function (res) {
+            Payroll.allRows = res.employees;
+            Payroll.filtered = [...Payroll.allRows];
+
+            renderPayrollKPIs(res.summary);
+            populateDeptFilter(res.employees);
+            renderPayrollTable(res.employees);
+
+            $('#payrollProcessing').hide();
+            $('#payrollResults').show();
+            $('#payrollHeaderActions').show();
+        },
+        error: function (err) {
+            $('#payrollProcessing').hide();
+            $('#payrollUploadZone').show();
+            const msg = err.responseJSON?.detail || 'Payroll processing failed.';
+            alert('Error: ' + msg);
+        }
+    });
+}
+
+/* ── KPIs ───────────────────────────────────────────────────────── */
+function renderPayrollKPIs(s) {
+    $('#pkActive').text(s.active_count);
+    $('#pkHeadcountSub').text(`${s.total_headcount} total · ${s.resigned_count} resigned`);
+
+    $('#pkGross').text(inr(s.total_gross));
+    $('#pkGrossSub').text(`Bonus ₹${fmt(s.total_bonus)} · Gratuity ₹${fmt(s.total_gratuity)}`);
+
+    $('#pkNet').text(inr(s.total_net));
+    $('#pkNetSub').text(`After all deductions`);
+
+    const totalStatutory = s.total_epf_emp + s.total_esi_emp;
+    $('#pkStatutory').text(inr(totalStatutory));
+    $('#pkStatutorySub').text(`EPF ₹${fmt(s.total_epf_emp)} · ESI ₹${fmt(s.total_esi_emp)}`);
+
+    $('#pkCTC').text(inr(s.total_ctc));
+    $('#pkCTCSub').text(`Incl. employer contributions ₹${fmt(s.total_employer)}`);
+
+    /* Stats strip */
+    const strip = $('#pkStatsStrip').empty();
+    if (s.resigned_count)   strip.append(pill('resigned',  `<i class="fa-solid fa-right-from-bracket"></i> ${s.resigned_count} Resigned`));
+    if (s.maternity_count)  strip.append(pill('maternity', `<i class="fa-solid fa-baby"></i> ${s.maternity_count} Maternity`));
+    if (s.long_leave_count) strip.append(pill('longleave', `<i class="fa-solid fa-person-walking-arrow-right"></i> ${s.long_leave_count} Long Leave`));
+    if (s.total_bonus  > 0) strip.append(pill('bonus',   `<i class="fa-solid fa-gift"></i> Bonus ₹${fmt(s.total_bonus)}`));
+    if (s.total_gratuity>0) strip.append(pill('gratuity',`<i class="fa-solid fa-star"></i> Gratuity ₹${fmt(s.total_gratuity)}`));
+}
+
+function pill(cls, html) {
+    return `<span class="pr-stat-pill ${cls}">${html}</span>`;
+}
+
+/* ── Dept filter options ────────────────────────────────────────── */
+function populateDeptFilter(rows) {
+    const depts = [...new Set(rows.map(r => r.customer).filter(Boolean))].sort();
+    const $sel = $('#filterDept').empty().append('<option value="">All</option>');
+    depts.forEach(d => $sel.append(`<option value="${d}">${d}</option>`));
+}
+
+/* ── Filters ────────────────────────────────────────────────────── */
+window.applyPayrollFilters = function () {
+    const status  = $('#filterStatus').val().toLowerCase();
+    const dept    = $('#filterDept').val().toLowerCase();
+    const search  = $('#payrollSearch').val().toLowerCase().trim();
+
+    Payroll.filtered = Payroll.allRows.filter(r => {
+        if (status && r.status.toLowerCase() !== status) return false;
+        if (dept   && r.customer.toLowerCase() !== dept)  return false;
+        if (search && !r.emp_id.toLowerCase().includes(search) &&
+                      !r.email.toLowerCase().includes(search)  &&
+                      !(r.name || '').toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    renderPayrollTable(Payroll.filtered);
+};
+
+/* ── Column group toggle ────────────────────────────────────────── */
+window.toggleColGroup = function (btn) {
+    const group = btn.dataset.group;
+    const nowActive = !btn.classList.contains('active');
+    btn.classList.toggle('active', nowActive);
+    Payroll.hiddenGroups[group] = !nowActive;
+
+    $(`#payrollTable [data-group="${group}"]`).toggleClass('col-hidden', !nowActive);
+};
+
+/* ── Table render ───────────────────────────────────────────────── */
+function renderPayrollTable(rows) {
+    const $tbody = $('#payrollTbody').empty();
+
+    if (!rows.length) {
+        $tbody.html('<tr><td colspan="39" class="empty-state"><i class="fa-regular fa-folder-open"></i> No results match the current filters.</td></tr>');
+        $('#prRowCount').text('');
+        return;
+    }
+
+    /* Re-apply hidden groups to newly rendered header cells */
+    Object.entries(Payroll.hiddenGroups).forEach(([group, hidden]) => {
+        $(`#payrollTable th[data-group="${group}"]`).toggleClass('col-hidden', hidden);
+    });
+
+    rows.forEach((e, i) => {
+        const statusCls = {
+            Active: 'ps-active', Resigned: 'ps-resigned',
+            Maternity: 'ps-maternity', 'Long Leave': 'ps-longleave'
+        }[e.status] || 'ps-active';
+
+        const statusIcon = {
+            Active: 'fa-circle-check', Resigned: 'fa-right-from-bracket',
+            Maternity: 'fa-baby', 'Long Leave': 'fa-person-walking-arrow-right'
+        }[e.status] || 'fa-circle-check';
+
+        const tdsVal       = parseFloat(e.tds || 0);
+        const insVal       = parseFloat(e.insurance || 0);
+        const otherVal     = parseFloat(e.other || 0);
+
+        $tbody.append(`
+        <tr data-emp="${e.emp_id}">
+            <td class="td-num">${i + 1}</td>
+            <td class="td-emp">${e.emp_id}</td>
+            <td><span class="ps-badge ${statusCls}"><i class="fa-solid ${statusIcon}"></i> ${e.status}</span></td>
+
+            <td data-group="contact" class="td-email">
+                <a href="mailto:${e.email}" title="${e.email}">${e.email || '—'}</a>
+            </td>
+            <td data-group="contact" class="td-num" style="text-align:left">${e.mobile || '—'}</td>
+            <td data-group="contact">${e.doj || '—'}</td>
+            <td data-group="contact">${e.doe || '—'}</td>
+            <td data-group="contact" style="max-width:140px;overflow:hidden;text-overflow:ellipsis">${e.customer || '—'}</td>
+
+            <td data-group="attendance" class="td-num">${e.present}</td>
+            <td data-group="attendance" class="td-num">${e.wo}</td>
+            <td data-group="attendance" class="td-num">${e.leaves}</td>
+            <td data-group="attendance" class="td-num">${e.hfl || zeroCell(0)}</td>
+            <td data-group="attendance" class="td-num">${e.ml  || zeroCell(0)}</td>
+            <td data-group="attendance" class="td-num ${e.ul  > 0 ? '' : 'td-zero'}">${e.ul}</td>
+            <td data-group="attendance" class="td-num ${e.lop > 0 ? 'td-money' : 'td-zero'}" style="color:${e.lop>0?'var(--red)':''}">${e.lop}</td>
+            <td data-group="attendance" class="td-num" style="font-weight:700">${e.payable_days}</td>
+
+            <td data-group="leave" class="td-num">${e.open_cl}</td>
+            <td data-group="leave" class="td-num">${e.open_sl}</td>
+            <td data-group="leave" class="td-num">${e.open_el}</td>
+            <td data-group="leave" class="td-num">${e.close_cl}</td>
+            <td data-group="leave" class="td-num">${e.close_sl}</td>
+            <td data-group="leave" class="td-num">${e.close_el}</td>
+
+            <td data-group="salary" class="td-money td-num">${inr(e.standard_salary)}</td>
+            <td data-group="salary" class="td-money td-num">${inr(e.current_salary)}</td>
+            <td data-group="salary" class="td-money td-num ${e.bonus > 0 ? '' : 'td-zero'}">${e.bonus > 0 ? inr(e.bonus) : '—'}</td>
+            <td data-group="salary" class="td-money td-num ${e.gratuity > 0 ? '' : 'td-zero'}" style="color:${e.gratuity>0?'#7c3aed':''}">${e.gratuity > 0 ? inr(e.gratuity) : '—'}</td>
+            <td class="td-gross">${inr(e.final_gross)}</td>
+
+            <td data-group="deductions" class="td-num">${inr(e.epf_employee)}</td>
+            <td data-group="deductions" class="td-num">${inr(e.esi_employee)}</td>
+            <td data-group="deductions" class="td-num ${e.profession_tax > 0 ? '' : 'td-zero'}">${e.profession_tax > 0 ? inr(e.profession_tax) : '—'}</td>
+            <td data-group="deductions" class="td-editable-cell">
+                <input type="number" class="manual-ded-inp" data-field="tds"       min="0" step="1" value="${tdsVal}" placeholder="0">
+            </td>
+            <td data-group="deductions" class="td-editable-cell">
+                <input type="number" class="manual-ded-inp" data-field="insurance" min="0" step="1" value="${insVal}" placeholder="0">
+            </td>
+            <td data-group="deductions" class="td-editable-cell">
+                <input type="number" class="manual-ded-inp" data-field="other"     min="0" step="1" value="${otherVal}" placeholder="0">
+            </td>
+            <td data-group="deductions" class="td-num td-total-ded" style="color:var(--red);font-weight:600">${inr(e.total_deductions)}</td>
+
+            <td class="td-net">${inr(e.net_salary)}</td>
+
+            <td data-group="employer" class="td-num">${inr(e.pension)}</td>
+            <td data-group="employer" class="td-num">${inr(e.pf_employer)}</td>
+            <td data-group="employer" class="td-num">${inr(e.esi_employer)}</td>
+            <td data-group="employer" class="td-num" style="font-weight:700">${inr(e.total_employer)}</td>
+        </tr>`);
+    });
+
+    /* Re-apply hidden groups to new td cells */
+    Object.entries(Payroll.hiddenGroups).forEach(([group, hidden]) => {
+        $(`#payrollTable td[data-group="${group}"]`).toggleClass('col-hidden', hidden);
+    });
+
+    $('#prRowCount').text(`Showing ${rows.length} of ${Payroll.allRows.length} employees`);
+}
+
+/* ── Manual deduction live recalculation ────────────────────────────── */
+$(document).on('input change', '#payrollTbody .manual-ded-inp', function () {
+    const $inp   = $(this);
+    const $tr    = $inp.closest('tr');
+    const empId  = $tr.data('emp');
+    const field  = $inp.data('field');
+    const val    = Math.max(0, parseFloat($inp.val()) || 0);
+
+    /* Find the employee object in allRows and filtered */
+    const emp = Payroll.allRows.find(r => r.emp_id === empId);
+    if (!emp) return;
+    emp[field] = val;
+
+    /* Recalculate total deductions and net salary */
+    const totalDed = emp.pf_esi_lwf_total + emp.profession_tax +
+                     (emp.tds || 0) + (emp.insurance || 0) + (emp.other || 0);
+    emp.total_deductions = totalDed;
+    emp.net_salary = Math.round(emp.final_gross - totalDed);
+
+    /* Update visible cells */
+    $tr.find('.td-total-ded').text(inr(totalDed));
+    $tr.find('.td-net').text(inr(emp.net_salary));
+
+    /* Refresh KPIs with updated totals */
+    renderPayrollKPIs(Payroll.allRows);
+});
+
+function zeroCell(v) { return v === 0 ? `<span class="td-zero">0</span>` : v; }
+
+/* ── Formatting helpers ─────────────────────────────────────────── */
+function inr(v) {
+    if (v == null || isNaN(v)) return '—';
+    return '₹' + parseFloat(v).toLocaleString('en-IN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+}
+
+function fmt(v) {
+    return parseFloat(v).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+}
+
+/* ── Downloads ──────────────────────────────────────────────────── */
+window.downloadPayroll = function () {
+    /* Generate CSV client-side so manual TDS/Insurance/Other edits are included */
+    const rows = Payroll.allRows;
+    if (!rows || !rows.length) { alert('No payroll data to download.'); return; }
+
+    const headers = [
+        'emp_id','email','mobile','doj','doe','customer','project','status','slab',
+        'present','wo','leaves','hfl','ml','ul','lop','payable_days',
+        'open_cl','open_sl','open_el','close_cl','close_sl','close_el',
+        'standard_salary','basic','hra','gross_salary','bonus','gratuity','final_gross',
+        'gross_for_pf','epf_wages','epf_employee','esi_employee','profession_tax','lwf',
+        'tds','insurance','other','pf_esi_lwf_total','total_deductions','net_salary',
+        'pension','pf_employer','esi_employer','total_employer','completed_years'
+    ];
+
+    const escape = v => {
+        const s = String(v ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+            ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const lines = [headers.join(',')];
+    rows.forEach(e => {
+        const r = [
+            e.emp_id, e.email, e.mobile, e.doj, e.doe, e.customer, e.project, e.status, e.slab,
+            e.present, e.wo, e.leaves, e.hfl, e.ml, e.ul, e.lop, e.payable_days,
+            e.open_cl, e.open_sl, e.open_el, e.close_cl, e.close_sl, e.close_el,
+            e.standard_salary, e.basic, e.hra, e.gross_salary, e.bonus, e.gratuity, e.final_gross,
+            e.gross_for_pf, e.epf_wages, e.epf_employee, e.esi_employee, e.profession_tax, e.lwf,
+            e.tds || 0, e.insurance || 0, e.other || 0,
+            e.pf_esi_lwf_total, e.total_deductions, e.net_salary,
+            e.pension, e.pf_employer, e.esi_employer, e.total_employer, e.completed_years
+        ];
+        lines.push(r.map(escape).join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'payroll_output.csv';
+    a.click();
+};
+
+window.downloadLeaveBalance = function () {
+    window.location.href = '/api/payroll/download/leave_balance';
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   FORMULA CONFIG PANEL
+   ═══════════════════════════════════════════════════════════════════ */
+let _fcCurrentConfig = null;   // live copy from server
+let _fcDefaultConfig = null;   // server defaults for comparison
+
+/* ── Load config on payroll tab open ───────────────────────────── */
+$(function () {
+    // Load config whenever user clicks Payroll nav
+    $('#navPayroll').on('click', function () {
+        if (!_fcCurrentConfig) loadPayrollConfig();
+    });
+});
+
+function loadPayrollConfig() {
+    $.getJSON('/api/payroll/config')
+        .done(function (cfg) {
+            _fcCurrentConfig = cfg;
+            populateFcPanel(cfg);
+        })
+        .fail(function () {
+            console.warn('Could not load payroll config');
+        });
+}
+
+/* ── Toggle panel visibility ────────────────────────────────────── */
+window.toggleFcPanel = function (forceState) {
+    const $panel = $('#fcPanel');
+    const $btn   = $('.btn-formula-cfg');
+    const isOpen = forceState !== undefined ? !forceState : $panel.is(':visible');
+
+    if (isOpen) {
+        $panel.slideUp(200);
+        $btn.removeClass('active');
+    } else {
+        if (!_fcCurrentConfig) loadPayrollConfig();
+        $panel.slideDown(200);
+        $btn.addClass('active');
+    }
+};
+
+/* ── Populate all form fields from config object ────────────────── */
+function populateFcPanel(cfg) {
+    const sl = cfg.salary_slabs || {};
+    const ep = cfg.epf || {};
+    const es = cfg.esi || {};
+    const gr = cfg.gratuity || {};
+    const la = cfg.leave_accrual || {};
+
+    const setV = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+
+    // Salary slabs
+    setV('fc_anchor_std',       sl.anchor?.standard ?? 12360);
+    setV('fc_anchor_basic_pct', sl.anchor?.basic_pct ?? 1.0);
+    setV('fc_anchor_hra_pct',   sl.anchor?.hra_pct ?? 0.0);
+    setV('fc_amia_std',         sl.amia?.standard ?? 17000);
+    setV('fc_amia_basic_pct',   sl.amia?.basic_pct ?? 0.9);
+    setV('fc_amia_hra_pct',     sl.amia?.hra_pct ?? 0.1);
+    setV('fc_asset_std',        sl.asset?.standard ?? 17000);
+    setV('fc_asset_basic_pct',  sl.asset?.basic_pct ?? 0.9);
+    setV('fc_asset_hra_pct',    sl.asset?.hra_pct ?? 0.1);
+
+    // EPF
+    setV('fc_epf_ceiling',      ep.ceiling ?? 15000);
+    setV('fc_epf_emp_rate',     ep.employee_rate ?? 0.12);
+    setV('fc_epf_pension_rate', ep.pension_rate ?? 0.0833);
+
+    // ESI
+    setV('fc_esi_emp_rate',  es.employee_rate ?? 0.0075);
+    setV('fc_esi_emp_rate2', es.employer_rate ?? 0.0325);
+    setV('fc_esi_exempt',    es.exemption_threshold ?? 21000);
+
+    // Gratuity & Bonus
+    setV('fc_month_days',       cfg.month_days ?? 28);
+    setV('fc_bonus_threshold',  cfg.bonus_threshold_days ?? 15);
+    setV('fc_grat_min_years',   gr.min_years ?? 5);
+    setV('fc_grat_divisor',     gr.divisor ?? 26);
+    setV('fc_grat_multiplier',  gr.multiplier ?? 15);
+
+    // Leave accrual
+    setV('fc_accrual_cl',       la.cl ?? 0.5);
+    setV('fc_accrual_sl',       la.sl ?? 0.5);
+    setV('fc_accrual_el',       la.el ?? 1.0);
+    setV('fc_accrual_extra_el', la.extra_el ?? 0.25);
+
+    // LWF
+    setV('fc_lwf', cfg.lwf ?? 0);
+
+    // Profession Tax slabs
+    renderPtaxSlabs(cfg.profession_tax_slabs || []);
+}
+
+/* ── Profession Tax slab renderer ──────────────────────────────── */
+function renderPtaxSlabs(slabs) {
+    const sorted = [...slabs].sort((a, b) => b.from_amount - a.from_amount);
+    const $wrap = $('#fcPtaxSlabs').empty();
+    sorted.forEach((slab, i) => {
+        $wrap.append(`
+        <div class="fc-ptax-slab-row" data-idx="${i}">
+            <label class="fc-lbl">Gross (excl. gratuity) ≥ ₹</label>
+            <input class="fc-ptax-inp" type="number" step="1" value="${slab.from_amount}"
+                   data-field="from_amount" placeholder="e.g. 20001">
+            <label class="fc-lbl" style="margin-left:10px">Tax ₹</label>
+            <input class="fc-ptax-inp" type="number" step="1" value="${slab.tax_amount}"
+                   data-field="tax_amount" placeholder="e.g. 200">
+            <button class="fc-ptax-remove" onclick="removePtaxSlab(${i})" title="Remove slab">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>`);
+    });
+}
+
+window.addPtaxSlab = function () {
+    const slabs = collectPtaxSlabs();
+    slabs.push({ from_amount: 0, tax_amount: 0 });
+    renderPtaxSlabs(slabs);
+};
+
+window.removePtaxSlab = function (idx) {
+    const slabs = collectPtaxSlabs();
+    slabs.splice(idx, 1);
+    renderPtaxSlabs(slabs);
+};
+
+function collectPtaxSlabs() {
+    const slabs = [];
+    $('#fcPtaxSlabs .fc-ptax-slab-row').each(function () {
+        const from = parseFloat($(this).find('[data-field="from_amount"]').val()) || 0;
+        const tax  = parseFloat($(this).find('[data-field="tax_amount"]').val())  || 0;
+        slabs.push({ from_amount: from, tax_amount: tax });
+    });
+    return slabs;
+}
+
+/* ── Read all form fields → config dict ────────────────────────── */
+function collectFcConfig() {
+    const getV = (id, fallback = 0) => {
+        const el = document.getElementById(id);
+        return el ? parseFloat(el.value) || fallback : fallback;
+    };
+
+    return {
+        month_days:           getV('fc_month_days', 28),
+        bonus_threshold_days: getV('fc_bonus_threshold', 15),
+        salary_slabs: {
+            anchor: {
+                label: 'Standard Anchor',
+                standard:  getV('fc_anchor_std', 12360),
+                basic_pct: getV('fc_anchor_basic_pct', 1.0),
+                hra_pct:   getV('fc_anchor_hra_pct', 0.0),
+            },
+            amia: {
+                label: 'AMIA / Maternity',
+                standard:  getV('fc_amia_std', 17000),
+                basic_pct: getV('fc_amia_basic_pct', 0.9),
+                hra_pct:   getV('fc_amia_hra_pct', 0.1),
+            },
+            asset: {
+                label: 'Asset',
+                standard:  getV('fc_asset_std', 17000),
+                basic_pct: getV('fc_asset_basic_pct', 0.9),
+                hra_pct:   getV('fc_asset_hra_pct', 0.1),
+            },
+        },
+        leave_accrual: {
+            cl:       getV('fc_accrual_cl', 0.5),
+            sl:       getV('fc_accrual_sl', 0.5),
+            el:       getV('fc_accrual_el', 1.0),
+            extra_el: getV('fc_accrual_extra_el', 0.25),
+        },
+        epf: {
+            employee_rate: getV('fc_epf_emp_rate', 0.12),
+            pension_rate:  getV('fc_epf_pension_rate', 0.0833),
+            ceiling:       getV('fc_epf_ceiling', 15000),
+        },
+        esi: {
+            employee_rate:        getV('fc_esi_emp_rate', 0.0075),
+            employer_rate:        getV('fc_esi_emp_rate2', 0.0325),
+            exemption_threshold:  getV('fc_esi_exempt', 21000),
+        },
+        profession_tax_slabs: collectPtaxSlabs(),
+        lwf:      getV('fc_lwf', 0),
+        gratuity: {
+            min_years:   getV('fc_grat_min_years', 5),
+            multiplier:  getV('fc_grat_multiplier', 15),
+            divisor:     getV('fc_grat_divisor', 26),
+        },
+        slab_detection: _fcCurrentConfig?.slab_detection || {
+            amia_keywords:  ['aima', 'amia'],
+            asset_keywords: ['bht', 'asset'],
+        },
+    };
+}
+
+/* ── Save config ────────────────────────────────────────────────── */
+window.savePayrollConfig = function () {
+    const cfg = collectFcConfig();
+    const $toast = $('#fcSaveToast');
+
+    $.ajax({
+        url: '/api/payroll/config',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(cfg),
+        success: function (res) {
+            _fcCurrentConfig = cfg;
+            $toast.removeClass('error').addClass('success')
+                  .html('<i class="fa-solid fa-circle-check"></i> ' + res.message)
+                  .show();
+            setTimeout(() => $toast.fadeOut(), 4000);
+            $('#fcCustomBadge').show();
+        },
+        error: function (err) {
+            const msg = err.responseJSON?.detail || 'Failed to save configuration.';
+            $toast.removeClass('success').addClass('error')
+                  .html('<i class="fa-solid fa-circle-xmark"></i> ' + msg)
+                  .show();
+            setTimeout(() => $toast.fadeOut(), 5000);
+        }
+    });
+};
+
+/* ── Reset to defaults ──────────────────────────────────────────── */
+window.resetPayrollConfig = function () {
+    if (!confirm('Reset all formula parameters to built-in defaults?')) return;
+    $.ajax({
+        url: '/api/payroll/config/reset',
+        type: 'POST',
+        success: function (res) {
+            _fcCurrentConfig = res.config;
+            populateFcPanel(res.config);
+            $('#fcCustomBadge').hide();
+            const $toast = $('#fcSaveToast');
+            $toast.removeClass('error').addClass('success')
+                  .html('<i class="fa-solid fa-rotate-left"></i> Reset to defaults.')
+                  .show();
+            setTimeout(() => $toast.fadeOut(), 3000);
+        },
+    });
+};

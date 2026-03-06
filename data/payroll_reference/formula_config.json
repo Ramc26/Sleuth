@@ -1,0 +1,66 @@
+{
+  "_comment": "Payroll Formula Configuration — edit via the Payroll Engine > Formula Config UI or directly here. All rates are decimals (12% = 0.12).",
+  "_source": "Reverse-engineered from SamplePaysheet.xlsx formulas (Feb 2026)",
+
+  "month_days": 28,
+  "bonus_threshold_days": 15,
+
+  "salary_slabs": {
+    "anchor": {
+      "label": "Standard Anchor",
+      "standard": 12360,
+      "basic_pct": 1.0,
+      "hra_pct": 0.0
+    },
+    "amia": {
+      "label": "AMIA / Maternity",
+      "standard": 17000,
+      "basic_pct": 0.9,
+      "hra_pct": 0.1
+    },
+    "asset": {
+      "label": "Asset",
+      "standard": 17000,
+      "basic_pct": 0.9,
+      "hra_pct": 0.1
+    }
+  },
+
+  "leave_accrual": {
+    "cl":       0.5,
+    "sl":       0.5,
+    "el":       1.0,
+    "extra_el": 0.25
+  },
+
+  "epf": {
+    "employee_rate": 0.12,
+    "pension_rate":  0.0833,
+    "ceiling":       15000
+  },
+
+  "esi": {
+    "employee_rate":        0.0075,
+    "employer_rate":        0.0325,
+    "exemption_threshold":  21000
+  },
+
+  "profession_tax_slabs": [
+    { "from_amount": 20001, "tax_amount": 200 },
+    { "from_amount": 15001, "tax_amount": 150 },
+    { "from_amount": 0,     "tax_amount": 0   }
+  ],
+
+  "lwf": 0,
+
+  "gratuity": {
+    "min_years":  5,
+    "multiplier": 15,
+    "divisor":    26
+  },
+
+  "slab_detection": {
+    "amia_keywords":  ["aima", "amia"],
+    "asset_keywords": ["bht", "asset"]
+  }
+}

@@ -9,7 +9,7 @@ Calender/*
 demo_data/*
 Assets/*
 qdrant_db
-qdrant_storage
+qdrant_storage_old
 Invoices/*
 static/uploads/
 core/__pycache__
