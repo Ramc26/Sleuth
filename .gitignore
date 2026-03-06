@@ -10,3 +10,4 @@ demo_data/*
 Assets/*
 qdrant_db
 qdrant_storage
+Invoices
