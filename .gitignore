@@ -10,7 +10,9 @@ demo_data/*
 Assets/*
 qdrant_db
 qdrant_storage_old
-Invoices/*
+Invoices/*.png
+Invoices/*.json
+Invoices/*.txt
 static/uploads/
 core/__pycache__
 openapi-all
