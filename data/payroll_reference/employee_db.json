@@ -1,0 +1,13 @@
+{
+    "_comment": "Per-employee static/manual deductions. Pre-populated from SamplePaysheet.xlsx (Anchors_Feb'26). Edit via Payroll Engine → Employee Deductions Manager in the UI, or POST /api/payroll/employee_deductions.",
+    "_fields": {
+        "tds": "Tax Deducted at Source (monthly, until cleared)",
+        "advance": "Any Others / Advance recovery (monthly, until cleared)",
+        "insurance": "Insurance Advance recovery (monthly, until cleared)"
+    },
+    "JAI-805": {
+        "tds": 0,
+        "advance": 0,
+        "insurance": 5763
+    }
+}

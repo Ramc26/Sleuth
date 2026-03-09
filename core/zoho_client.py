@@ -193,34 +193,87 @@ def create_bill(invoice_data: dict) -> dict:
     if not org_id:
         raise ValueError("ZOHO_ORG_ID is not set in .env.")
 
-    entity_name = (invoice_data.get("entity") or "Unknown Vendor").strip()
+    # ── Vendor ───────────────────────────────────────────────────────────
+    entity_name = (invoice_data.get("vendor_name") or "Unknown Vendor").strip()
     vendor_id   = get_or_create_vendor(entity_name, access_token)
 
-    amount       = float(invoice_data.get("amount") or 0)
-    description  = invoice_data.get("billing_period") or f"Invoice from {entity_name}"
-    account_id   = get_purchase_account_id(access_token)
+    # ── Default purchase account for any line item missing an account_id ─
+    default_account_id = get_purchase_account_id(access_token)
 
-    line_item: dict = {
-        "description": description,
-        "rate":        amount,
-        "quantity":    1,
-    }
-    if account_id:
-        line_item["account_id"] = account_id
+    # ── Line items ────────────────────────────────────────────────────────
+    raw_lines   = invoice_data.get("line_items") or []
+    line_items  = []
+    for li in raw_lines:
+        item: dict = {
+            "description": li.get("item_details") or li.get("description") or "Service",
+            "rate":        float(li.get("rate") or 0),
+            "quantity":    float(li.get("quantity") or 1),
+        }
+        # Use resolved default account_id (Zoho requires account_id per line item)
+        if default_account_id:
+            item["account_id"] = default_account_id
+        line_items.append(item)
 
-    # Base payload without the date
-    bill_payload = {
-        "vendor_id":        vendor_id,
-        "bill_number":      invoice_data.get("invoice_id") or "BILL",
-        "reference_number": invoice_data.get("invoice_id") or "",
-        "notes":            f"Auto-posted by Sleuth | {entity_name} | {description}",
-        "line_items":       [line_item],
+    # Fallback: if no line items extracted, create one from total
+    if not line_items:
+        fallback_item = {
+            "description": invoice_data.get("subject") or f"Invoice from {entity_name}",
+            "rate":        float(invoice_data.get("total") or invoice_data.get("amount") or 0),
+            "quantity":    1,
+        }
+        if default_account_id:
+            fallback_item["account_id"] = default_account_id
+        line_items = [fallback_item]
+
+    # ── Payload ───────────────────────────────────────────────────────────
+    bill_payload: dict = {
+        "vendor_id":  vendor_id,
+        "line_items": line_items,
     }
-    
-    # Safely inject date only if it exists and is not empty
-    invoice_date = invoice_data.get("date")
-    if invoice_date and invoice_date.strip():
-        bill_payload["date"] = invoice_date.strip()
+
+    # Scalar text fields
+    if invoice_data.get("bill_number"):
+        bill_payload["bill_number"]      = invoice_data["bill_number"]
+        bill_payload["reference_number"] = invoice_data["bill_number"]
+    if invoice_data.get("order_number"):
+        bill_payload["purchaseorder_number"] = invoice_data["order_number"]
+    if invoice_data.get("payment_terms"):
+        bill_payload["payment_terms_label"] = invoice_data["payment_terms"]
+    if invoice_data.get("subject"):
+        bill_payload["notes"] = invoice_data["subject"]   # Zoho "subject" maps to notes
+    if invoice_data.get("notes"):
+        # Append internal notes after subject
+        existing = bill_payload.get("notes", "")
+        bill_payload["notes"] = f"{existing}\n{invoice_data['notes']}".strip()
+    if invoice_data.get("currency"):
+        bill_payload["currency_code"] = invoice_data["currency"]
+
+    # Dates — only inject if non-empty
+    for src_key, dest_key in [("bill_date", "date"), ("due_date", "due_date")]:
+        val = invoice_data.get(src_key)
+        if val and str(val).strip():
+            bill_payload[dest_key] = str(val).strip()
+
+    # ── Discount ─────────────────────────────────────────────────────────
+    discount = invoice_data.get("discount")
+    if discount and float(discount.get("value") or 0) > 0:
+        bill_payload["discount"] = float(discount["value"])
+        bill_payload["is_discount_before_tax"] = True
+        if discount.get("is_percentage"):
+            bill_payload["discount_type"] = "entity_level"
+        else:
+            bill_payload["discount_type"] = "entity_level"
+
+    # ── TDS / TCS ─────────────────────────────────────────────────────────
+    tax_type   = (invoice_data.get("tax_type") or "").upper()
+    tax_amount = float(invoice_data.get("tax_amount") or 0)
+    if tax_type in ("TDS", "TCS") and tax_amount > 0:
+        bill_payload["tax_treatment"] = "exclusive"
+
+    # ── Adjustment ────────────────────────────────────────────────────────
+    adjustment = float(invoice_data.get("adjustment") or 0)
+    if adjustment:
+        bill_payload["adjustment"] = adjustment
 
     logger.info(f"Creating Zoho Bill payload: {bill_payload}")
 
@@ -244,6 +297,34 @@ def create_bill(invoice_data: dict) -> dict:
     bill = result.get("bill", {})
     logger.info(f"✅ Bill created in Zoho Books: {bill.get('bill_id')} — {bill.get('bill_number')}")
     return bill
+
+
+# ── Attach PDF to an existing Bill ──────────────────────────────────────
+def attach_pdf_to_bill(bill_id: str, pdf_path: str, pdf_filename: str) -> bool:
+    """Uploads the source PDF as an attachment to the Zoho Books bill."""
+    if not os.path.exists(pdf_path):
+        logger.warning(f"PDF not found for attachment: {pdf_path}")
+        return False
+    try:
+        access_token = get_access_token()
+        org_id       = os.getenv("ZOHO_ORG_ID", "").strip()
+        with open(pdf_path, "rb") as f:
+            resp = requests.post(
+                f"{ZOHO_BOOKS_URL}/bills/{bill_id}/attachment",
+                headers=_headers(access_token),          # no json_body — multipart
+                params={"organization_id": org_id, "can_send_in_mail": "true"},
+                files={"document": (pdf_filename, f, "application/pdf")},
+                timeout=30,
+            )
+        if resp.ok and resp.json().get("code") == 0:
+            logger.info(f"✅ PDF attached to bill {bill_id}")
+            return True
+        else:
+            logger.warning(f"PDF attachment failed: {resp.text}")
+            return False
+    except Exception as e:
+        logger.warning(f"PDF attachment exception: {e}")
+        return False
 
 
 # ── Disconnect ──────────────────────────────────────────────────────────

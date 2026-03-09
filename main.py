@@ -15,7 +15,7 @@ import io
 
 from core.investigator import investigate_variance
 from core.vector_store import index_evidence_to_qdrant, get_qdrant_status
-from core.invoice_processor import process_invoice_to_ledger
+from core.invoice_processor import process_invoice_to_zoho_bill
 from core import zoho_client
 from core.payroll_engine import (
     process_attendance_csv,
@@ -24,6 +24,9 @@ from core.payroll_engine import (
     _load_config,
     _default_config,
     save_config,
+    load_employee_db,
+    upsert_employee_db,
+    save_employee_db,
 )
 
 logger = logging.getLogger("Sleuth.API")
@@ -75,11 +78,33 @@ class InvestigateRequest(BaseModel):
 
 
 class PostToLedgerRequest(BaseModel):
-    invoice_id:     str
-    entity:         str
-    amount:         float
-    date:           str
-    billing_period: Optional[str] = None
+    # ── Core fields (from new extractor) ─────────────────────────────────
+    vendor_name:    str
+    bill_number:    Optional[str] = None
+    order_number:   Optional[str] = None
+    bill_date:      Optional[str] = None
+    due_date:       Optional[str] = None
+    payment_terms:  Optional[str] = "Due on Receipt"
+    subject:        Optional[str] = None
+    currency:       Optional[str] = "INR"
+    # Line items (list of dicts: item_details, quantity, rate, account, amount)
+    line_items:     Optional[list] = None
+    # Totals
+    sub_total:      Optional[float] = None
+    total:          Optional[float] = None
+    # Discount — {value, is_percentage}
+    discount:       Optional[dict] = None
+    # TDS / TCS selection and amount
+    tax_type:       Optional[str] = None          # "TDS" | "TCS" | None
+    tax_amount:     Optional[float] = None
+    # Shipping / rounding adjustment
+    adjustment:     Optional[float] = None
+    # Notes
+    notes:          Optional[str] = None
+    # PDF path for attaching to Zoho bill (set by server, not sent from UI)
+    pdf_path:       Optional[str] = None
+    pdf_filename:   Optional[str] = None
+    # Legacy CSV target
     target_csv:     str = "data/demo_data/ledgers/system_a_vendor_ledger.csv"
 
 
@@ -132,7 +157,7 @@ async def upload_invoice(
     try:
         with open(saved_path, "wb") as out:
             shutil.copyfileobj(file.file, out)
-        result = process_invoice_to_ledger(file.filename, saved_path, target_csv)
+        result = process_invoice_to_zoho_bill(file.filename, saved_path, target_csv)
     except Exception as e:
         if os.path.exists(saved_path):
             os.remove(saved_path)
@@ -143,23 +168,27 @@ async def upload_invoice(
             os.remove(saved_path)
         raise HTTPException(status_code=422, detail=result["message"])
 
-    result["pdf_url"] = f"/static/uploads/{safe_name}"
+    result["pdf_url"]        = f"/static/uploads/{safe_name}"
+    result["pdf_saved_path"] = saved_path   # server-side path for Zoho attachment
     return result
 
 
 @app.post("/api/post_to_ledger")
 async def post_to_ledger(req: PostToLedgerRequest):
     """
-    Confirms an invoice: writes the 4 ledger fields to the local CSV
-    AND (if Zoho Books is connected) creates a Bill in Zoho Books.
+    Confirms a bill: writes to local CSV ledger AND (if Zoho is connected)
+    creates a Bill in Zoho Books with all fields + optionally attaches the PDF.
     """
+    # ── Build a minimal ledger row for CSV ───────────────────────────────
     ledger_row = {
-        "invoice_id": req.invoice_id,
-        "entity":     req.entity,
-        "amount":     req.amount,
-        "date":       req.date,
+        "vendor_name": req.vendor_name,
+        "bill_number": req.bill_number or "",
+        "bill_date":   req.bill_date or "",
+        "total":       req.total or 0,
+        "currency":    req.currency or "INR",
+        "tax_type":    req.tax_type or "",
+        "payment_terms": req.payment_terms or "",
     }
-    # ── Write to local CSV ───────────────────────────────────────────
     try:
         df = pd.DataFrame([ledger_row])
         if not os.path.exists(req.target_csv):
@@ -167,17 +196,25 @@ async def post_to_ledger(req: PostToLedgerRequest):
             df.to_csv(req.target_csv, index=False)
         else:
             df.to_csv(req.target_csv, mode="a", header=False, index=False)
-        logger.info(f"Ledger row saved to CSV: {req.invoice_id}")
+        logger.info(f"Ledger row saved to CSV: {req.bill_number}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CSV write failed: {e}")
 
-    # ── Optionally post to Zoho Books ────────────────────────────────
-    zoho_result = None
-    zoho_status = zoho_client.get_zoho_status()
+    # ── Optionally post to Zoho Books ────────────────────────────────────
+    zoho_result    = None
+    pdf_attached   = False
+    zoho_status    = zoho_client.get_zoho_status()
     if zoho_status["connected"]:
         try:
             zoho_result = zoho_client.create_bill(req.model_dump())
-            logger.info(f"Bill created in Zoho Books: {zoho_result.get('bill_id')}")
+            bill_id     = zoho_result.get("bill_id")
+            logger.info(f"Bill created in Zoho Books: {bill_id}")
+
+            # Attach the source PDF to the bill if path was provided
+            if bill_id and req.pdf_path and req.pdf_filename:
+                pdf_attached = zoho_client.attach_pdf_to_bill(
+                    bill_id, req.pdf_path, req.pdf_filename
+                )
         except Exception as e:
             logger.warning(f"Zoho Books bill creation failed (CSV already saved): {e}")
             return {
@@ -188,9 +225,10 @@ async def post_to_ledger(req: PostToLedgerRequest):
             }
 
     return {
-        "status":      "success",
-        "csv_saved":   True,
-        "zoho_posted": zoho_result is not None,
+        "status":       "success",
+        "csv_saved":    True,
+        "zoho_posted":  zoho_result is not None,
+        "pdf_attached": pdf_attached,
         "zoho_bill_id": zoho_result.get("bill_id") if zoho_result else None,
     }
 
@@ -428,6 +466,58 @@ async def reset_payroll_config():
     defaults = _default_config()
     save_config(defaults)
     return {"status": "reset", "config": defaults}
+
+
+@app.get("/api/payroll/employee_deductions")
+async def get_employee_deductions():
+    """
+    Return all per-employee static deductions (TDS / Advance / Insurance).
+    These persist month-to-month until HR manually clears them.
+    """
+    return load_employee_db()
+
+
+@app.post("/api/payroll/employee_deductions")
+async def update_employee_deductions(payload: dict):
+    """
+    Upsert per-employee static deductions.
+    Body: { "JAI-805": { "tds": 0, "advance": 0, "insurance": 5763 }, ... }
+    Only the fields provided are updated; others remain unchanged.
+    """
+    try:
+        # Validate field names
+        allowed = {"tds", "advance", "insurance"}
+        for emp_id, fields in payload.items():
+            if not isinstance(fields, dict):
+                raise HTTPException(status_code=400, detail=f"Invalid payload for {emp_id}")
+            invalid = set(fields.keys()) - allowed
+            if invalid:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown field(s) for {emp_id}: {invalid}. Allowed: {allowed}"
+                )
+        updated_db = upsert_employee_db(payload)
+        return {"status": "saved", "db": updated_db}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update deductions: {e}")
+
+
+@app.delete("/api/payroll/employee_deductions/{emp_id}")
+async def clear_employee_deductions(emp_id: str):
+    """
+    Remove a specific employee's deductions record (effectively sets all to 0).
+    """
+    try:
+        db = load_employee_db()
+        if emp_id in db:
+            del db[emp_id]
+            save_employee_db(db)
+            return {"status": "cleared", "emp_id": emp_id}
+        return {"status": "not_found", "emp_id": emp_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear deductions: {e}")
 
 
 @app.post("/api/payroll/process")
