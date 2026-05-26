@@ -4,8 +4,9 @@ import shutil
 import logging
 import pandas as pd
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -16,7 +17,6 @@ import io
 from core.investigator import investigate_variance
 from core.vector_store import index_evidence_to_qdrant, get_qdrant_status
 from core.invoice_processor import process_invoice_to_zoho_bill
-from core import zoho_client
 from core.payroll_engine import (
     process_attendance_csv,
     generate_payroll_csv,
@@ -32,8 +32,15 @@ from core.payroll_engine import (
 logger = logging.getLogger("Sleuth.API")
 
 # ── Uploads dir ──────────────────────────────────────────────────
-UPLOADS_DIR = "static/uploads"
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+UPLOADS_DIR = os.getenv(
+    "UPLOADS_DIR",
+    "/tmp/sleuth_uploads" if os.getenv("VERCEL") else str(STATIC_DIR / "uploads"),
+)
 os.makedirs(UPLOADS_DIR, exist_ok=True)
+UPLOADS_PUBLIC_PREFIX = "/static/uploads" if Path(UPLOADS_DIR).is_relative_to(STATIC_DIR) else ""
 
 # ── Global Qdrant health state (set on startup) ──────────────────
 _qdrant_health: dict = {"reachable": False, "collection_exists": False, "error": None}
@@ -48,7 +55,7 @@ async def lifespan(app: FastAPI):
     _qdrant_health = get_qdrant_status()
 
     if not _qdrant_health["reachable"]:
-        logger.warning("⚠️  Qdrant is NOT reachable. Docker may be down.")
+        logger.warning("⚠️  Qdrant is NOT reachable. Check QDRANT_URL and QDRANT_API_KEY.")
     elif not _qdrant_health["collection_exists"]:
         logger.warning("⚠️  Qdrant is up but evidence collection is missing. Run /api/index_db.")
     else:
@@ -63,8 +70,8 @@ async def lifespan(app: FastAPI):
 # ─────────────────────────────────────────────
 app = FastAPI(title="Sleuth API", version="2.2.0", lifespan=lifespan)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 # ─────────────────────────────────────────────
@@ -130,9 +137,10 @@ async def health_check():
     # Update the cached global too (useful in dev with --reload)
     global _qdrant_health
     _qdrant_health = status
+    has_evidence = status["reachable"] and status["collection_exists"] and status.get("points_count", 0) > 0
     return {
         "qdrant": status,
-        "ok": status["reachable"] and status["collection_exists"],
+        "ok": has_evidence,
     }
 
 
@@ -168,7 +176,7 @@ async def upload_invoice(
             os.remove(saved_path)
         raise HTTPException(status_code=422, detail=result["message"])
 
-    result["pdf_url"]        = f"/static/uploads/{safe_name}"
+    result["pdf_url"]        = f"{UPLOADS_PUBLIC_PREFIX}/{safe_name}" if UPLOADS_PUBLIC_PREFIX else ""
     result["pdf_saved_path"] = saved_path   # server-side path for Zoho attachment
     return result
 
@@ -176,8 +184,8 @@ async def upload_invoice(
 @app.post("/api/post_to_ledger")
 async def post_to_ledger(req: PostToLedgerRequest):
     """
-    Confirms a bill: writes to local CSV ledger AND (if Zoho is connected)
-    creates a Bill in Zoho Books with all fields + optionally attaches the PDF.
+    Confirms a bill by writing to the local CSV ledger.
+    Zoho integration is intentionally disabled for the public demo.
     """
     # ── Build a minimal ledger row for CSV ───────────────────────────────
     ledger_row = {
@@ -200,36 +208,12 @@ async def post_to_ledger(req: PostToLedgerRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CSV write failed: {e}")
 
-    # ── Optionally post to Zoho Books ────────────────────────────────────
-    zoho_result    = None
-    pdf_attached   = False
-    zoho_status    = zoho_client.get_zoho_status()
-    if zoho_status["connected"]:
-        try:
-            zoho_result = zoho_client.create_bill(req.model_dump())
-            bill_id     = zoho_result.get("bill_id")
-            logger.info(f"Bill created in Zoho Books: {bill_id}")
-
-            # Attach the source PDF to the bill if path was provided
-            if bill_id and req.pdf_path and req.pdf_filename:
-                pdf_attached = zoho_client.attach_pdf_to_bill(
-                    bill_id, req.pdf_path, req.pdf_filename
-                )
-        except Exception as e:
-            logger.warning(f"Zoho Books bill creation failed (CSV already saved): {e}")
-            return {
-                "status":      "partial",
-                "csv_saved":   True,
-                "zoho_posted": False,
-                "zoho_error":  str(e),
-            }
-
     return {
         "status":       "success",
         "csv_saved":    True,
-        "zoho_posted":  zoho_result is not None,
-        "pdf_attached": pdf_attached,
-        "zoho_bill_id": zoho_result.get("bill_id") if zoho_result else None,
+        "zoho_posted":  False,
+        "pdf_attached": False,
+        "zoho_bill_id": None,
     }
 
 
@@ -251,86 +235,6 @@ async def delete_invoice_pdf(pdf_url: str):
 
     raise HTTPException(status_code=400, detail="Invalid path.")
 
-
-# ─────────────────────────────────────────────
-# Zoho Books OAuth
-# ─────────────────────────────────────────────
-
-@app.get("/zoho/auth/start")
-async def zoho_auth_start():
-    """Redirects the user to Zoho's consent page to begin OAuth."""
-    client_id    = os.getenv("ZOHO_CLIENT_ID", "")
-    redirect_uri = os.getenv("ZOHO_REDIRECT_URI", "http://localhost:8000/zoho/oauth/callback")
-    auth_url = (
-        f"https://accounts.zoho.in/oauth/v2/auth"
-        f"?response_type=code"
-        f"&client_id={client_id}"
-        # 👇 Corrected scope here: added ZohoBooks.accountants.READ
-        f"&scope=ZohoBooks.bills.CREATE,ZohoBooks.contacts.CREATE,ZohoBooks.contacts.READ,ZohoBooks.accountants.READ"
-        f"&redirect_uri={redirect_uri}"
-        f"&access_type=offline"
-        f"&prompt=consent"
-    )
-    return RedirectResponse(auth_url)
-
-
-@app.get("/zoho/oauth/callback")
-async def zoho_oauth_callback(code: str = None, error: str = None):
-    """
-    Handles the redirect from Zoho after user grants consent.
-    Exchanges the auth code for tokens and saves the refresh token to .env.
-    """
-    if error or not code:
-        return HTMLResponse(
-            f"<h3>Zoho OAuth Error</h3><p>{error or 'No code returned.'}</p>"
-            "<p><a href='/'>Return to Sleuth</a></p>",
-            status_code=400,
-        )
-    try:
-        zoho_client.exchange_code_for_tokens(code)
-        return RedirectResponse("/?zoho_connected=1")
-    except Exception as e:
-        logger.error(f"Zoho token exchange failed: {e}")
-        return HTMLResponse(
-            f"<h3>Token Exchange Failed</h3><p>{e}</p>"
-            "<p><a href='/'>Return to Sleuth</a></p>",
-            status_code=500,
-        )
-
-
-@app.get("/api/zoho/status")
-async def zoho_status():
-    """Returns the current Zoho Books connection status."""
-    return zoho_client.get_zoho_status()
-
-
-@app.post("/api/zoho/disconnect")
-async def zoho_disconnect():
-    """Clears the stored refresh token, disconnecting Zoho Books."""
-    zoho_client.disconnect_zoho()
-    return {"status": "disconnected"}
-
-
-@app.get("/api/zoho/debug")
-async def zoho_debug():
-    """
-    Debug endpoint — tests token refresh and Chart of Accounts lookup.
-    Returns the account_id that will be used for bill line items.
-    """
-    status = zoho_client.get_zoho_status()
-    if not status["connected"]:
-        return {"error": "Not connected", "status": status}
-    try:
-        token = zoho_client.get_access_token()
-        account_id = zoho_client.get_purchase_account_id(token)
-        return {
-            "status":     "ok",
-            "token":      token[:20] + "…",
-            "account_id": account_id,
-            "org_id":     status["org_id"],
-        }
-    except Exception as e:
-        return {"error": str(e)}
 
 # ─────────────────────────────────────────────
 # Tab 2 — Audit Suite
@@ -396,8 +300,8 @@ async def run_investigation(req: InvestigateRequest):
         raise HTTPException(
             status_code=503,
             detail=(
-                "🐳 Vector Store Offline — Qdrant is not reachable. "
-                "Please start the Docker container: `docker run -p 6333:6333 qdrant/qdrant`. "
+                "Vector Store Offline — Qdrant is not reachable. "
+                "Check QDRANT_URL and QDRANT_API_KEY. "
                 "Investigation cannot proceed without the evidence locker."
             ),
         )
@@ -421,8 +325,8 @@ async def run_investigation(req: InvestigateRequest):
             raise HTTPException(
                 status_code=503,
                 detail=(
-                    "🐳 Vector Store Offline — Lost connection to Qdrant mid-request. "
-                    "Verify Docker is running and try again."
+                    "Vector Store Offline — Lost connection to Qdrant mid-request. "
+                    "Verify Qdrant Cloud settings and try again."
                 ),
             )
         logger.error(f"Investigation error: {e}")
@@ -576,16 +480,19 @@ async def index_database():
         raise HTTPException(
             status_code=503,
             detail=(
-                "🐳 Qdrant is not reachable. Start Docker first: "
-                "`docker run -p 6333:6333 qdrant/qdrant`"
+                "Qdrant is not reachable. Check QDRANT_URL and QDRANT_API_KEY."
             ),
         )
     try:
-        index_evidence_to_qdrant()
+        indexed_count = index_evidence_to_qdrant()
         # Refresh global health state after successful index
         global _qdrant_health
         _qdrant_health = get_qdrant_status()
-        return {"status": "success", "message": "Evidence locker synced successfully."}
+        return {
+            "status": "success",
+            "indexed_count": indexed_count,
+            "message": f"Evidence locker synced successfully ({indexed_count} files).",
+        }
     except Exception as e:
         logger.error(f"Indexing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

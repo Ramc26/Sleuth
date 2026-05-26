@@ -1,6 +1,7 @@
 Calender/*
 .venv/*
 .env
+*_api_key.txt
 .DS_Store
 .idea/*
 .pytest_cache/*

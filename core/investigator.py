@@ -37,7 +37,7 @@ You are 'Sleuth', an elite Senior Forensic Accountant AI working for an enterpri
 ━━━ CASE FILE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Invoice ID  : {inv_id}
 Entity      : {entity}
-System A    : ${amt_a:.2f}   (ZohoBooks — Vendor Ledger)
+System A    : ${amt_a:.2f}   (Vendor Ledger)
 System B    : ${amt_b:.2f}   (ERP — Internal Record)
 Variance    : ${variance:.2f}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1412,6 +1412,30 @@ details[open] .toggle-icon {
     margin-bottom: 18px;
 }
 
+.ledger-test-data-note {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 11px;
+    margin-bottom: 14px;
+    border: 1px solid #bfdbfe;
+    border-radius: var(--radius);
+    background: var(--accent-light);
+    color: #1e40af;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ledger-test-data-note a {
+    color: var(--accent);
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.ledger-test-data-note a:hover {
+    text-decoration: underline;
+}
+
 .ledger-upload-row {
     display: flex;
     align-items: flex-end;
@@ -2490,6 +2514,24 @@ details[open] .toggle-icon {
 .btn-formula-cfg.active {
     background: var(--accent-dim);
     border-color: var(--accent);
+    color: var(--accent);
+}
+
+.qdrant-status-btn.qdrant-ready {
+    background: var(--green-bg);
+    border-color: var(--green-border);
+    color: var(--green);
+}
+
+.qdrant-status-btn.qdrant-error {
+    background: var(--red-bg);
+    border-color: var(--red-border);
+    color: var(--red);
+}
+
+.qdrant-status-btn.qdrant-checking {
+    background: var(--accent-light);
+    border-color: #bfdbfe;
     color: var(--accent);
 }
 

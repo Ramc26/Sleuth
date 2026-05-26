@@ -3,7 +3,7 @@ name = "sleuth"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.134.0",
     "jinja2>=3.1.6",
@@ -13,7 +13,6 @@ dependencies = [
     "pymupdf>=1.27.1",
     "python-dotenv>=1.2.1",
     "python-multipart>=0.0.22",
-    "qdrant-client[fastembed]>=1.17.0",
-    "streamlit>=1.52.2",
+    "qdrant-client>=1.17.0",
     "uvicorn>=0.41.0",
 ]

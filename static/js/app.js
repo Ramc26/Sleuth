@@ -7,33 +7,63 @@
    Health Check (Qdrant)
    ════════════════════════════════════════════════ */
 function checkHealth() {
-    const $btn = $('#sysWarningRetry');
-    $btn.prop('disabled', true).html('<i class="fa-solid fa-rotate fa-spin"></i> Checking…');
+    const $retryBtn = $('#sysWarningRetry');
+    const $statusBtn = $('#qdrantStatusBtn');
+    setQdrantStatus('checking');
+    $retryBtn.prop('disabled', true).html('<i class="fa-solid fa-rotate fa-spin"></i> Checking…');
 
     $.getJSON('/api/health')
         .done(function (res) {
             if (res.ok) {
+                setQdrantStatus('ready', res.qdrant.points_count);
                 $('#sysWarning').fadeOut(300);
             } else if (!res.qdrant.reachable) {
+                setQdrantStatus('error');
                 showBanner(
                     'Vector Store Offline',
-                    res.qdrant.error || 'Qdrant is not reachable. Start Docker to enable forensic investigation.',
+                    res.qdrant.error || 'Qdrant is not reachable. Check Qdrant Cloud settings.',
                     false
                 );
             } else {
+                setQdrantStatus('empty');
                 showBanner(
-                    'Evidence Base Not Indexed',
-                    res.qdrant.error || "Click 'Sync Evidence Base' in the sidebar to index your evidence files.",
+                    'Evidence Base Empty',
+                    res.qdrant.error || "No evidence points found in Qdrant. Click 'Sync Evidence Base', then retry.",
                     true
                 );
             }
         })
         .fail(function () {
+            setQdrantStatus('error');
             showBanner('Health Check Failed', 'Could not reach the Sleuth backend. Is Uvicorn running?', false);
         })
         .always(function () {
-            $btn.prop('disabled', false).html('<i class="fa-solid fa-rotate"></i> Retry');
+            $retryBtn.prop('disabled', false).html('<i class="fa-solid fa-rotate"></i> Retry');
+            $statusBtn.prop('disabled', false);
         });
+}
+
+function setQdrantStatus(state, pointsCount) {
+    const $btn = $('#qdrantStatusBtn');
+    if (!$btn.length) return;
+
+    $btn
+        .removeClass('qdrant-ready qdrant-error qdrant-checking')
+        .prop('disabled', state === 'checking');
+
+    if (state === 'checking') {
+        $btn.addClass('qdrant-checking')
+            .html('<i class="fa-solid fa-rotate fa-spin"></i> Checking…');
+    } else if (state === 'ready') {
+        $btn.addClass('qdrant-ready')
+            .html(`<i class="fa-solid fa-circle-check"></i> Evidences Found (${pointsCount || 0})`);
+    } else if (state === 'empty') {
+        $btn.addClass('qdrant-error')
+            .html('<i class="fa-solid fa-rotate"></i> Retry - No Evidence');
+    } else {
+        $btn.addClass('qdrant-error')
+            .html('<i class="fa-solid fa-rotate"></i> Retry Connection');
+    }
 }
 
 function showBanner(title, msg, isCollectionWarning) {
@@ -61,7 +91,8 @@ function switchTab(tabKey) {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${tabKey}`).classList.add('active');
     const navMap = { capture: 'navDataEntry', analysis: 'navAuditSuite', payroll: 'navPayroll' };
-    document.getElementById(navMap[tabKey]).classList.add('active');
+    const nav = document.getElementById(navMap[tabKey]);
+    if (nav) nav.classList.add('active');
 }
 
 /* ════════════════════════════════════════════════
@@ -128,7 +159,7 @@ $(function () {
                 State.results[idx].status = 'done';
                 State.results[idx].data = res.data;
                 State.results[idx].pdfUrl = res.pdf_url;
-                State.results[idx].savedPath = res.pdf_saved_path || null; // for Zoho attachment
+                State.results[idx].savedPath = res.pdf_saved_path || null;
                 updateCard(idx);
                 updateBatchCounter();
 
@@ -232,7 +263,7 @@ $(function () {
         $('#pdfEmbed').attr('src', r.pdfUrl);
         $('#detailFilename').text(r.file.name);
 
-        // Populate all Zoho bill fields from extracted data
+        // Populate extracted invoice fields.
         const d = r.data;
         $('#extVendorName').val(d.vendor_name || d.entity || '');
         $('#extBillNumber').val(d.bill_number || d.invoice_id || '');
@@ -403,7 +434,7 @@ $(function () {
             tax_amount: taxTypeVal ? (parseFloat($('#extTaxAmount').val()) || null) : null,
             adjustment: parseFloat($('#extAdjustment').val()) || null,
             notes: $('#extNotes').val().trim() || null,
-            // PDF path for Zoho attachment — stored on server after upload
+            // PDF path stored on server after upload.
             pdf_path: r.savedPath || null,
             pdf_filename: r.file.name || null,
         };
@@ -435,10 +466,7 @@ $(function () {
                 $('#discardBtn').prop('disabled', true);
                 updateBatchCounter();
 
-                const zohoMsg = res.zoho_posted
-                    ? ` &middot; Bill <code>${res.zoho_bill_id}</code> created in Zoho Books`
-                    : ' &middot; CSV only (Zoho not connected)';
-                showToast(`Posted &mdash; ${payload.bill_number || payload.vendor_name || ''}${zohoMsg}`, 'success');
+                showToast(`Posted &mdash; ${payload.bill_number || payload.vendor_name || ''} &middot; CSV saved`, 'success');
             },
             error: function (err) {
                 const detail = err.responseJSON?.detail || 'Post to Ledger failed.';
@@ -630,7 +658,7 @@ $(function () {
                     : statusCode === 503 ? 'Evidence Base Not Indexed'
                         : 'Investigation Error';
                 const hint = statusCode === 503
-                    ? '<br><small style="opacity:.65">Run <code>docker run -p 6333:6333 qdrant/qdrant</code> then click "Sync Evidence Base".</small>'
+                    ? '<br><small style="opacity:.65">Check Qdrant Cloud settings, then click "Sync Evidence Base".</small>'
                     : '';
                 $('#reportContainer').html(`<div style="padding:22px">${icon}
                     <p style="font-weight:700;font-size:14px;color:var(--text-1);margin-bottom:7px">${heading}</p>
@@ -659,7 +687,11 @@ $(function () {
         $('#syncBtnText').text('Syncing…');
 
         $.post('/api/index_db')
-            .done(() => { $('#syncBtnText').text('Synced'); checkHealth(); })
+            .done((res) => {
+                const count = res.indexed_count ?? 0;
+                $('#syncBtnText').text(`Synced ${count}`);
+                checkHealth();
+            })
             .fail(() => $('#syncBtnText').text('Sync Failed'))
             .always(() => {
                 $btn.prop('disabled', false);
@@ -674,53 +706,7 @@ $(function () {
         return sym + parseFloat(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
-    /* ─── Zoho Status (called on page load) ────────────────────── */
-    checkZohoStatus();
-
-    // If redirected back after successful OAuth
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('zoho_connected') === '1') {
-        showToast('<i class="fa-solid fa-check-circle"></i> Zoho Books connected successfully!', 'success');
-        window.history.replaceState({}, '', '/');
-    }
-
 });
-
-/* ───────────────────────────────────────────────────────────────────────
-   Zoho Status + Disconnect (global scope — called from HTML onclick)
-────────────────────────────────────────────────────────────────────── */
-
-function checkZohoStatus() {
-    $.getJSON('/api/zoho/status')
-        .done(function (res) {
-            const $dot = $('.zoho-dot');
-            const $text = $('#zohoStatusText');
-            if (res.connected) {
-                $dot.removeClass('dot-disconnected').addClass('dot-connected');
-                $text.text(`Org ${res.org_id || 'Connected'}`);
-                $('#zohoConnectActions').hide();
-                $('#zohoDisconnectActions').show();
-            } else {
-                $dot.removeClass('dot-connected').addClass('dot-disconnected');
-                $text.text('Disconnected');
-                $('#zohoConnectActions').show();
-                $('#zohoDisconnectActions').hide();
-            }
-        })
-        .fail(function () {
-            $('#zohoStatusText').text('Status unknown');
-        });
-}
-
-function disconnectZoho() {
-    $.post('/api/zoho/disconnect')
-        .done(function () {
-            checkZohoStatus();
-        })
-        .fail(function () {
-            alert('Disconnect failed.');
-        });
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    TAB 3 — PAYROLL ENGINE

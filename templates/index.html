@@ -32,58 +32,16 @@
         <nav class="sidebar-nav">
             <p class="nav-section-label">Navigation</p>
 
-            <button class="nav-item active" id="navDataEntry" onclick="switchTab('capture')">
-                <i class="fa-solid fa-file-invoice nav-icon"></i>
-                <div class="nav-text">
-                    <span class="nav-title">Invoice Capture</span>
-                    <span class="nav-sub">Document Ingestion</span>
-                </div>
-            </button>
-
-            <button class="nav-item" id="navAuditSuite" onclick="switchTab('analysis')">
+            <button class="nav-item active" id="navAuditSuite" onclick="switchTab('analysis')">
                 <i class="fa-solid fa-magnifying-glass-chart nav-icon"></i>
                 <div class="nav-text">
                     <span class="nav-title">Variance Analysis</span>
                     <span class="nav-sub">Reconciliation &amp; Audit</span>
                 </div>
             </button>
-
-            <button class="nav-item" id="navPayroll" onclick="switchTab('payroll')">
-                <i class="fa-solid fa-users nav-icon"></i>
-                <div class="nav-text">
-                    <span class="nav-title">Payroll Engine</span>
-                    <span class="nav-sub">Attendance &rarr; Salaries</span>
-                </div>
-            </button>
         </nav>
 
         <div class="sidebar-footer">
-
-            <!-- Zoho Books Integration -->
-            <div class="zoho-section" id="zohoSection">
-                <div class="zoho-header">
-                    <img src="https://www.zohowebstatic.com/sites/default/files/u8896/zoho_logo_black.png"
-                        alt="Zoho Books" class="zoho-logo" onerror="this.style.display='none'">
-                    <span class="zoho-product">Zoho Books</span>
-                </div>
-                <div class="zoho-status" id="zohoStatus">
-                    <span class="zoho-dot dot-disconnected"></span>
-                    <span id="zohoStatusText">Checking…</span>
-                </div>
-                <div id="zohoConnectActions">
-                    <a href="/zoho/auth/start" class="btn-zoho-connect" id="zohoConnectBtn">
-                        <i class="fa-solid fa-plug"></i> Connect
-                    </a>
-                </div>
-                <div id="zohoDisconnectActions" style="display:none;">
-                    <button class="btn-zoho-disconnect" onclick="disconnectZoho()">
-                        <i class="fa-solid fa-plug-circle-xmark"></i> Disconnect
-                    </button>
-                </div>
-            </div>
-
-            <div class="sidebar-divider"></div>
-
             <button id="indexDbBtn" class="sync-btn">
                 <i class="fa-solid fa-database"></i>
                 <span id="syncBtnText">Sync Evidence Base</span>
@@ -117,7 +75,7 @@
         <!-- ══════════════════════════════════════════
          TAB: INVOICE CAPTURE
     ══════════════════════════════════════════ -->
-        <div class="tab-panel active" id="tab-capture">
+        <div class="tab-panel" id="tab-capture">
 
             <div class="panel-header">
                 <div>
@@ -192,7 +150,7 @@
                             </div>
                         </div>
 
-                        <!-- Extraction Panel — Zoho Books Bill format -->
+                        <!-- Extraction Panel -->
                         <div class="extraction-panel">
 
                             <div class="extraction-header">
@@ -362,7 +320,7 @@
         <!-- ══════════════════════════════════════════
          TAB: VARIANCE ANALYSIS
     ══════════════════════════════════════════ -->
-        <div class="tab-panel" id="tab-analysis">
+        <div class="tab-panel active" id="tab-analysis">
 
             <div class="panel-header">
                 <div>
@@ -371,7 +329,7 @@
                         to run an AI investigation.</p>
                 </div>
                 <div class="panel-header-actions">
-                    <button class="btn-formula-cfg" onclick="checkHealth()"
+                    <button class="btn-formula-cfg qdrant-status-btn" id="qdrantStatusBtn" onclick="checkHealth()"
                         title="Check connection to Qdrant vector database">
                         <i class="fa-solid fa-satellite-dish"></i> Check Connection
                     </button>
@@ -405,12 +363,17 @@
 
             <!-- Upload Controls -->
             <div class="ledger-upload-card">
+                <div class="ledger-test-data-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    For test data, access ledgers from
+                    <a href="https://drive.google.com/drive/folders/13Uw82-eCj-jtVsUfDPxWHDxQewzZrVZe?usp=sharing" id="testDataDriveLink" target="_blank" rel="noopener">this Drive link</a>.
+                </div>
                 <form id="reconcileForm">
                     <div class="ledger-upload-row">
                         <div class="ledger-upload-field">
                             <label class="ledger-upload-label">
                                 <span class="sys-badge sys-a">SYS A</span>
-                                Primary Ledger &mdash; ZohoBooks / Vendor
+                                Primary Ledger &mdash; Vendor System
                             </label>
                             <input type="file" class="file-input" id="fileA" accept=".csv" required>
                         </div>
