@@ -50,7 +50,9 @@ uv sync
 uv run uvicorn main:app --reload
 ```
 
-Open `http://localhost:8000`.
+Open `http://localhost:8000` for the landing page.
+
+Live demo app: `http://localhost:8000/sleuth-2604`
 
 ## Vercel Deploy
 

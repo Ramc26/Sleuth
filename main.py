@@ -116,10 +116,15 @@ class PostToLedgerRequest(BaseModel):
 
 
 # ─────────────────────────────────────────────
-# UI Route
+# UI Routes
 # ─────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
-async def serve_ui(request: Request):
+async def serve_landing(request: Request):
+    return templates.TemplateResponse("landing.html", {"request": request})
+
+
+@app.get("/sleuth-2604", response_class=HTMLResponse)
+async def serve_demo_app(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 

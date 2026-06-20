@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleuth — AI Reconciliation Investigation</title>
+    <meta name="description"
+        content="From reconciliation break to root cause in minutes. Sleuth connects ledger discrepancies to evidence and generates corrective journal entries.">
+    <link rel="canonical" href="https://trysleuth.vercel.app/">
+    <meta name="theme-color" content="#0A0E14">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://trysleuth.vercel.app/">
+    <meta property="og:site_name" content="Sleuth">
+    <meta property="og:title" content="Sleuth — AI Reconciliation Investigation">
+    <meta property="og:description"
+        content="From reconciliation break to root cause in minutes. Sleuth connects ledger discrepancies to emails, notices, and transaction records to identify root causes and generate corrective journal entries.">
+    <meta property="og:image" content="https://trysleuth.vercel.app/static/img/og-card.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sleuth — AI Reconciliation Investigation">
+    <meta name="twitter:description"
+        content="From reconciliation break to root cause in minutes. AI-powered reconciliation investigation for finance teams.">
+    <meta name="twitter:image" content="https://trysleuth.vercel.app/static/img/og-card.svg">
+
+    <!-- Favicon -->
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/landing.css">
+</head>
+
+<body>
+
+    <header class="lp-nav">
+        <div class="lp-nav-inner">
+            <a href="/" class="lp-logo">
+                <span class="lp-logo-mark">S</span>
+                SLEUTH
+            </a>
+            <nav class="lp-nav-links" id="lpNavLinks">
+                <a href="#product">Product</a>
+                <a href="#demo">Demo</a>
+                <a href="#how-it-works">How It Works</a>
+                <a href="#contact">Contact</a>
+                <a href="https://calendly.com/itsrambikkina/30min" class="lp-btn lp-btn-cta" target="_blank" rel="noopener noreferrer">Schedule a Demo</a>
+            </nav>
+            <button class="lp-nav-toggle" id="lpNavToggle" aria-label="Menu">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="lp-hero">
+        <div class="lp-hero-grid" aria-hidden="true"></div>
+        <div class="lp-hero-inner">
+            <div class="lp-hero-copy">
+                <span class="lp-badge">AI Reconciliation Investigation</span>
+                <h1>From Reconciliation Break to Root Cause in Minutes</h1>
+                <p class="lp-hero-sub">
+                    Sleuth connects ledger discrepancies to emails, notices, messages, and transaction records to
+                    automatically identify root causes and generate corrective journal entries.
+                </p>
+                <div class="lp-hero-actions">
+                    <a href="https://calendly.com/itsrambikkina/30min" class="lp-btn lp-btn-cta" target="_blank" rel="noopener noreferrer">
+                        Schedule a Demo
+                    </a>
+                    <a href="#demo" class="lp-btn lp-btn-outline">
+                        <i class="fa-solid fa-play"></i> Watch 5-Min Demo
+                    </a>
+                </div>
+            </div>
+            <div class="lp-mockup" id="heroMockup">
+                <div class="lp-mockup-header">Variance Detected</div>
+                <div class="lp-mockup-row">
+                    <span class="lp-mockup-label">Vendor Ledger</span>
+                    <span class="lp-mockup-value mono">$15,000.00</span>
+                </div>
+                <div class="lp-mockup-row">
+                    <span class="lp-mockup-label">ERP Ledger</span>
+                    <span class="lp-mockup-value mono">$14,350.00</span>
+                </div>
+                <div class="lp-mockup-row">
+                    <span class="lp-mockup-label">Difference</span>
+                    <span class="lp-mockup-value mono neg">-$650.00</span>
+                </div>
+                <div class="lp-mockup-stage investigating" id="heroStage">
+                    <span class="investigating"><i class="fa-solid fa-spinner fa-spin"></i> Investigation Running…</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What Sleuth Does -->
+    <section class="lp-section lp-section-compact" id="what-sleuth-does">
+        <div class="lp-container">
+            <h2 class="lp-section-title">What Sleuth Does</h2>
+            <p class="lp-section-sub">Finance teams find discrepancies. Sleuth finds the reason.</p>
+            <div class="lp-flow">
+                <div class="lp-flow-col">
+                    <div class="lp-flow-icon"><i class="fa-solid fa-table"></i></div>
+                    <h3>Structured Data</h3>
+                    <ul>
+                        <li>Vendor Ledger</li>
+                        <li>ERP Ledger</li>
+                        <li>Journal Entries</li>
+                    </ul>
+                </div>
+                <div class="lp-flow-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="lp-flow-col lp-flow-col-accent">
+                    <div class="lp-flow-icon"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+                    <h3>Investigation Engine</h3>
+                    <ul>
+                        <li>Evidence Matching</li>
+                        <li>Communication Search</li>
+                        <li>Context Validation</li>
+                    </ul>
+                </div>
+                <div class="lp-flow-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="lp-flow-col">
+                    <div class="lp-flow-icon"><i class="fa-solid fa-file-circle-check"></i></div>
+                    <h3>Outputs</h3>
+                    <ul>
+                        <li>Root Cause</li>
+                        <li><span class="mono">Confidence Score</span></li>
+                        <li>Journal Entry</li>
+                        <li>Audit Report</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Social proof -->
+    <section class="lp-proof">
+        <div class="lp-container">
+            <p class="lp-proof-label">Built for</p>
+            <div class="lp-proof-badges">
+                <span class="lp-proof-badge">Controllers</span>
+                <span class="lp-proof-badge">Finance Managers</span>
+                <span class="lp-proof-badge">Accounting Managers</span>
+                <span class="lp-proof-badge">Internal Auditors</span>
+                <span class="lp-proof-badge">FP&amp;A Teams</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem -->
+    <section class="lp-section">
+        <div class="lp-container">
+            <h2 class="lp-section-title">Finding the Cause Takes Longer Than Finding the Variance</h2>
+            <div class="lp-compare">
+                <div class="lp-compare-card traditional">
+                    <h3>Traditional Process</h3>
+                    <ul class="lp-compare-steps">
+                        <li>Discrepancy Found</li>
+                        <li>Search Email</li>
+                        <li>Search Slack</li>
+                        <li>Review Attachments</li>
+                        <li>Ask Team Members</li>
+                        <li>Review Journal Entries</li>
+                        <li>Hours Lost</li>
+                    </ul>
+                </div>
+                <div class="lp-compare-card sleuth">
+                    <h3>Sleuth Process</h3>
+                    <ul class="lp-compare-steps">
+                        <li>Discrepancy Found</li>
+                        <li>Run Investigation</li>
+                        <li>Root Cause</li>
+                        <li>Evidence</li>
+                        <li>Journal Entry</li>
+                        <li>Minutes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="lp-section" id="how-it-works">
+        <div class="lp-container">
+            <h2 class="lp-section-title">How It Works</h2>
+            <div class="lp-steps">
+                <div class="lp-step-card">
+                    <div class="lp-step-icon detect"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h3>Detect</h3>
+                    <p>Upload ledgers and identify reconciliation exceptions.</p>
+                </div>
+                <div class="lp-step-card">
+                    <div class="lp-step-icon investigate"><i class="fa-solid fa-magnifying-glass"></i></div>
+                    <h3>Investigate</h3>
+                    <p>Match transactions against emails, notices, messages, and supporting records.</p>
+                </div>
+                <div class="lp-step-card">
+                    <div class="lp-step-icon resolve"><i class="fa-solid fa-circle-check"></i></div>
+                    <h3>Resolve</h3>
+                    <p>Receive evidence-backed explanations and suggested journal entries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshot carousel: Problem → Investigation → Resolution -->
+    <section class="lp-section" id="product">
+        <div class="lp-container">
+            <h2 class="lp-section-title">From Exception to Explanation</h2>
+            <p class="lp-section-sub">Problem → Investigation → Resolution</p>
+
+            <div class="lp-carousel" id="productCarousel">
+                <button class="lp-carousel-btn lp-carousel-prev" aria-label="Previous slide">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <div class="lp-carousel-viewport">
+                    <div class="lp-carousel-track">
+
+                        <div class="lp-carousel-slide active" data-slide="0">
+                            <div class="lp-screenshot">
+                                <img src="/static/img/screenshot1.png"
+                                    alt="Detect reconciliation exceptions automatically">
+                            </div>
+                            <h3>Detect Reconciliation Exceptions Automatically</h3>
+                            <p>Upload vendor and ERP ledgers, identify mismatches, and launch investigations directly from the variance log.</p>
+                        </div>
+
+                        <div class="lp-carousel-slide" data-slide="1">
+                            <div class="lp-screenshot">
+                                <img src="/static/img/screenshot2.png" alt="AI investigation in progress">
+                            </div>
+                            <h3>AI Investigation in Progress</h3>
+                            <p>Sleuth searches evidence repositories and communication records to uncover the reason behind each discrepancy.</p>
+                        </div>
+
+                        <div class="lp-carousel-slide" data-slide="2">
+                            <div class="lp-screenshot">
+                                <img src="/static/img/screenshot3.png" alt="Evidence-based resolution">
+                            </div>
+                            <h3>Evidence-Based Resolution</h3>
+                            <p>Every investigation includes a root cause, confidence assessment, supporting evidence chain, and suggested journal entry.</p>
+                        </div>
+
+                    </div>
+                </div>
+                <button class="lp-carousel-btn lp-carousel-next" aria-label="Next slide">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="lp-carousel-dots" id="carouselDots"></div>
+        </div>
+    </section>
+
+    <!-- Every Investigation Includes -->
+    <section class="lp-section lp-checklist-section">
+        <div class="lp-container">
+            <h2 class="lp-section-title">Every Investigation Includes</h2>
+            <div class="lp-checklist-grid">
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>Root Cause Classification</span>
+                </div>
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-link"></i>
+                    <span>Evidence Chain</span>
+                </div>
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span><span class="mono">Confidence Assessment</span></span>
+                </div>
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>Forensic Explanation</span>
+                </div>
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-book"></i>
+                    <span>Corrective Journal Entry</span>
+                </div>
+                <div class="lp-checklist-card">
+                    <i class="fa-solid fa-file-export"></i>
+                    <span>Exportable Audit Report</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why Sleuth is Different -->
+    <section class="lp-section" id="why-different">
+        <div class="lp-container">
+            <h2 class="lp-section-title">Why Sleuth is Different</h2>
+            <div class="lp-diff">
+                <div class="lp-diff-col lp-diff-traditional">
+                    <h3>Traditional AI</h3>
+                    <ul>
+                        <li><i class="fa-solid fa-minus"></i> Searches broadly</li>
+                        <li><i class="fa-solid fa-minus"></i> Generates explanations</li>
+                        <li><i class="fa-solid fa-minus"></i> Limited traceability</li>
+                        <li><i class="fa-solid fa-minus"></i> Risk of hallucination</li>
+                    </ul>
+                </div>
+                <div class="lp-diff-col lp-diff-sleuth">
+                    <h3>Sleuth</h3>
+                    <ul>
+                        <li><i class="fa-solid fa-check"></i> Matches Invoice IDs</li>
+                        <li><i class="fa-solid fa-check"></i> Matches Counterparties</li>
+                        <li><i class="fa-solid fa-check"></i> Matches Dollar Amounts</li>
+                        <li><i class="fa-solid fa-check"></i> Builds Traceable Evidence Chains</li>
+                        <li><i class="fa-solid fa-check"></i> Produces Audit-Ready Output</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo -->
+    <section class="lp-section" id="demo">
+        <div class="lp-container">
+            <div class="lp-demo-card">
+                <h2>Watch a Real Investigation</h2>
+                <p>See how Sleuth investigates a reconciliation discrepancy and finds supporting evidence in under five minutes.</p>
+                <div class="lp-video-wrap" id="demo-video">
+                    <iframe id="loomEmbed"
+                        src="https://www.loom.com/embed/YOUR_LOOM_ID"
+                        frameborder="0"
+                        webkitallowfullscreen
+                        mozallowfullscreen
+                        allowfullscreen
+                        title="Sleuth product demo"></iframe>
+                </div>
+                <div class="lp-demo-actions">
+                    <a href="#demo-video" class="lp-btn lp-btn-cta">
+                        <i class="fa-solid fa-play"></i> Watch Demo
+                    </a>
+                    <a href="https://calendly.com/itsrambikkina/30min" class="lp-btn lp-btn-cta" target="_blank" rel="noopener noreferrer">
+                        Schedule Demo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="lp-cta" id="contact">
+        <h2>Stop Searching Emails to Explain Ledger Differences</h2>
+        <p>See how Sleuth helps finance teams move from discrepancy to explanation in minutes.</p>
+        <a href="https://calendly.com/itsrambikkina/30min" class="lp-btn lp-btn-cta" target="_blank" rel="noopener noreferrer">Schedule a Demo</a>
+    </section>
+
+    <!-- Footer -->
+    <footer class="lp-footer">
+        <div class="lp-footer-inner">
+            <div>
+                <div class="lp-footer-brand">SLEUTH</div>
+                <p class="lp-footer-tagline">AI Reconciliation Investigation</p>
+                <p class="lp-footer-meta">Website: <a href="https://trysleuth.vercel.app" target="_blank" rel="noopener">trysleuth.vercel.app</a></p>
+                <p class="lp-footer-meta">Email: <a href="mailto:itsrambikkina@gmail.com">itsrambikkina@gmail.com</a></p>
+            </div>
+            <div class="lp-footer-links">
+                <a href="https://bikkina.vercel.app" target="_blank" rel="noopener noreferrer">About Dev</a>
+            </div>
+        </div>
+        <p class="lp-footer-copy">&copy; 2026 Sleuth</p>
+    </footer>
+
+    <script src="/static/js/landing.js"></script>
+</body>
+
+</html>

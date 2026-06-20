@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#0A0E14"/>
+  <rect width="1200" height="630" fill="url(#bg)" opacity="1"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A0E14"/>
+      <stop offset="0.55" stop-color="#0d1a24"/>
+      <stop offset="1" stop-color="#0A0E14"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="400" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00D4AA"/>
+      <stop offset="1" stop-color="#00D4AA" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <rect x="80" y="520" width="240" height="4" fill="url(#accent)" rx="2"/>
+  <circle cx="120" cy="120" r="36" stroke="#00D4AA" stroke-width="3" fill="none"/>
+  <text x="120" y="132" text-anchor="middle" font-family="system-ui, sans-serif" font-size="36" font-weight="700" fill="#00D4AA">S</text>
+  <text x="180" y="132" font-family="system-ui, sans-serif" font-size="42" font-weight="700" fill="#FFFFFF" letter-spacing="4">SLEUTH</text>
+  <text x="80" y="260" font-family="system-ui, sans-serif" font-size="52" font-weight="700" fill="#FFFFFF">From Reconciliation Break</text>
+  <text x="80" y="330" font-family="system-ui, sans-serif" font-size="52" font-weight="700" fill="#FFFFFF">to Root Cause in Minutes</text>
+  <text x="80" y="410" font-family="system-ui, sans-serif" font-size="28" fill="#AAB2C8">AI Reconciliation Investigation for finance teams</text>
+  <text x="80" y="560" font-family="system-ui, sans-serif" font-size="22" fill="#00D4AA">trysleuth.vercel.app</text>
+</svg>
