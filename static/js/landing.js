@@ -1,11 +1,10 @@
 /**
- * Sleuth landing page — hero loop, carousel, scroll reveals
+ * Sleuth landing — motion, carousel, nav
  */
 
 (function () {
     'use strict';
 
-    /* ── Mobile nav ─────────────────────────────────────── */
     const toggle = document.getElementById('lpNavToggle');
     const navLinks = document.getElementById('lpNavLinks');
     if (toggle && navLinks) {
@@ -15,41 +14,6 @@
         });
     }
 
-    /* ── Hero dashboard animation loop ──────────────────── */
-    const stage = document.getElementById('heroStage');
-    const stages = [
-        {
-            html: '<span class="investigating"><i class="fa-solid fa-spinner fa-spin"></i> Investigation Running…</span>',
-            cls: 'investigating'
-        },
-        {
-            html: 'Root Cause Found<div class="lp-mockup-confidence">Approved Vendor Discount</div><div class="lp-mockup-confidence mono">Confidence: 94%</div>',
-            cls: 'resolved'
-        },
-        {
-            html: '<span style="color:var(--text-2)">Variance Detected — Ready to investigate</span>',
-            cls: ''
-        }
-    ];
-    let stageIdx = 0;
-
-    function runHeroLoop() {
-        if (!stage) return;
-        const s = stages[stageIdx];
-        stage.style.opacity = '0';
-        setTimeout(() => {
-            stage.className = 'lp-mockup-stage ' + (s.cls || '');
-            stage.innerHTML = s.html;
-            stage.style.opacity = '1';
-            stageIdx = (stageIdx + 1) % stages.length;
-        }, 300);
-    }
-
-    if (stage) {
-        setInterval(runHeroLoop, 3200);
-    }
-
-    /* ── Product carousel (fade + autoplay) ───────────── */
     const carousel = document.getElementById('productCarousel');
     if (carousel) {
         const slides = carousel.querySelectorAll('.lp-carousel-slide');
@@ -79,9 +43,7 @@
             dots.forEach((d, i) => d.classList.toggle('active', i === current));
         }
 
-        function next() {
-            goTo(current + 1);
-        }
+        function next() { goTo(current + 1); }
 
         function resetAutoplay() {
             clearInterval(autoplayTimer);
@@ -119,10 +81,7 @@
         resetAutoplay();
     }
 
-    /* ── Scroll reveal ──────────────────────────────────── */
-    const revealEls = document.querySelectorAll(
-        '.lp-step-card, .lp-flow-col, .lp-checklist-card, .lp-diff-col'
-    );
+    const revealEls = document.querySelectorAll('.lp-flow-card, .lp-step, .lp-check, .lp-diff-col');
     const observer = new IntersectionObserver(
         entries => {
             entries.forEach(entry => {
@@ -132,22 +91,4 @@
         { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
     );
     revealEls.forEach(el => observer.observe(el));
-
-    /* ── Loom fallback if placeholder ID ────────────────── */
-    const loom = document.getElementById('loomEmbed');
-    if (loom && loom.src.includes('YOUR_LOOM_ID')) {
-        loom.remove();
-        const wrap = document.querySelector('.lp-video-wrap');
-        if (wrap) {
-            wrap.style.display = 'flex';
-            wrap.style.flexDirection = 'column';
-            wrap.style.alignItems = 'center';
-            wrap.style.justifyContent = 'center';
-            wrap.style.gap = '16px';
-            wrap.style.padding = '48px 24px';
-            wrap.innerHTML =
-                '<p style="color:var(--text-2);font-size:14px;text-align:center;">Replace YOUR_LOOM_ID in landing.html with your Loom embed ID.</p>' +
-                '<a href="https://calendly.com/itsrambikkina/30min" class="lp-btn lp-btn-cta" target="_blank" rel="noopener noreferrer">Schedule Demo</a>';
-        }
-    }
 })();
