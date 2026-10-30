@@ -20,22 +20,22 @@ function checkHealth() {
             } else if (!res.qdrant.reachable) {
                 setQdrantStatus('error');
                 showBanner(
-                    'Vector Store Offline',
-                    res.qdrant.error || 'Qdrant is not reachable. Check Qdrant Cloud settings.',
+                    'Evidence locker unavailable',
+                    res.qdrant.error || 'Unable to reach the evidence index. Verify vector store configuration.',
                     false
                 );
             } else {
                 setQdrantStatus('empty');
                 showBanner(
-                    'Evidence Base Empty',
-                    res.qdrant.error || "No evidence points found in Qdrant. Click 'Sync Evidence Base', then retry.",
+                    'Evidence index empty',
+                    res.qdrant.error || 'No indexed evidence yet. Use “Refresh evidence index” in the header, then retry.',
                     true
                 );
             }
         })
         .fail(function () {
             setQdrantStatus('error');
-            showBanner('Health Check Failed', 'Could not reach the Sleuth backend. Is Uvicorn running?', false);
+            showBanner('Service unavailable', 'Could not reach the Sleuth API. Confirm the application is running.', false);
         })
         .always(function () {
             $retryBtn.prop('disabled', false).html('<i class="fa-solid fa-rotate"></i> Retry');
@@ -56,13 +56,13 @@ function setQdrantStatus(state, pointsCount) {
             .html('<i class="fa-solid fa-rotate fa-spin"></i> Checking…');
     } else if (state === 'ready') {
         $btn.addClass('qdrant-ready')
-            .html(`<i class="fa-solid fa-circle-check"></i> Evidences Found (${pointsCount || 0})`);
+            .html(`<i class="fa-solid fa-circle-check"></i> ${pointsCount || 0} indexed records`);
     } else if (state === 'empty') {
         $btn.addClass('qdrant-error')
-            .html('<i class="fa-solid fa-rotate"></i> Retry - No Evidence');
+            .html('<i class="fa-solid fa-rotate"></i> Index empty — retry');
     } else {
         $btn.addClass('qdrant-error')
-            .html('<i class="fa-solid fa-rotate"></i> Retry Connection');
+            .html('<i class="fa-solid fa-rotate"></i> Retry connection');
     }
 }
 
@@ -548,7 +548,7 @@ $(function () {
         $btn.prop('disabled', true).html('<span class="spinner-border"></span> Reconciling…');
         $('#boardTbody').html(`<tr><td colspan="5" class="empty-state">
             <i class="fa-solid fa-rotate fa-spin"></i> Merging ledgers…</td></tr>`);
-        $('#reportContainer').html('<div class="audit-empty"><i class="fa-solid fa-user-secret audit-empty-icon"></i><p>Select an exception from the Variance Log<br>to initiate an AI-assisted investigation.</p></div>');
+        $('#reportContainer').html('<div class="audit-empty"><i class="fa-solid fa-magnifying-glass-chart audit-empty-icon"></i><p>Select an exception from the exception log<br>to generate a root-cause analysis with evidence citations.</p></div>');
         resetAnalysisBadge();
 
         $.ajax({
@@ -563,7 +563,7 @@ $(function () {
                 $('#boardTbody').html(`<tr><td colspan="5" class="empty-state" style="color:var(--red)">
                     <i class="fa-solid fa-triangle-exclamation"></i> ${detail}</td></tr>`);
             },
-            complete: () => $btn.prop('disabled', false).html('<i class="fa-solid fa-scale-balanced"></i> Reconcile')
+            complete: () => $btn.prop('disabled', false).html('<i class="fa-solid fa-scale-balanced"></i> Run reconciliation')
         });
     });
 
@@ -598,7 +598,7 @@ $(function () {
                 ? `<button class="btn-open-case"
                         data-inv="${row.invoice_id}" data-ent="${row.entity}"
                         data-amta="${row.amount_SubA}" data-amtb="${row.amount_SubB}">
-                        <i class="fa-solid fa-magnifying-glass"></i> Open Case
+                        <i class="fa-solid fa-magnifying-glass"></i> Investigate
                    </button>`
                 : '';
 
@@ -610,6 +610,80 @@ $(function () {
                 <td>${action}</td>
             </tr>`);
         });
+    }
+
+    /* ─── Investigation progress log ───────────────────────────── */
+    let investigationLogTimer = null;
+
+    function investigationVarianceLabel(amt_a, amt_b) {
+        const delta = Math.abs((amt_a || 0) - (amt_b || 0));
+        return '$' + delta.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function buildInvestigationSteps(inv_id, entity, amt_a, amt_b) {
+        const variance = investigationVarianceLabel(amt_a, amt_b);
+        return [
+            { phase: 'Init', text: 'Initializing investigation case', meta: `${inv_id} · ${entity}` },
+            { phase: 'Parse', text: 'Parsing ledger variance', meta: `Sub-ledger delta ${variance} marked as exception` },
+            { phase: 'Search', text: 'Searching evidence locker', meta: 'Semantic retrieval over emails, threads, and attachments' },
+            { phase: 'Rank', text: 'Ranking candidate evidence', meta: 'Scoring by relevance, counterparty, and document date' },
+            { phase: 'Match', text: 'Cross-referencing source systems', meta: 'PO lines, goods receipt, and approval workflow' },
+            { phase: 'Chain', text: 'Building evidence chain', meta: 'Linking citations to variance timeline' },
+            { phase: 'Cause', text: 'Evaluating root-cause hypotheses', meta: 'Timing · quantity · price · duplicate posting' },
+            { phase: 'Fix', text: 'Drafting recommended remediation', meta: 'Accrual, adjustment entry, and control note' },
+            { phase: 'Report', text: 'Generating audit-ready report', meta: 'Executive summary and proposed journal entry' },
+        ];
+    }
+
+    function renderInvestigationProgress(steps, activeIndex) {
+        const headline = steps[activeIndex]?.text || 'Processing…';
+        const lines = steps.map((step, i) => {
+            let state = 'pending';
+            if (i < activeIndex) state = 'done';
+            else if (i === activeIndex) state = 'active';
+            const icon = state === 'done'
+                ? '<i class="fa-solid fa-circle-check"></i>'
+                : state === 'active'
+                    ? '<span class="inv-log-spinner"></span>'
+                    : '<i class="fa-regular fa-circle"></i>';
+            return `<li class="inv-log-line inv-log-${state}">
+                <span class="inv-log-icon">${icon}</span>
+                <span class="inv-log-body">
+                    <span class="inv-log-text">${step.text}</span>
+                    <span class="inv-log-meta">${step.meta}</span>
+                </span>
+            </li>`;
+        }).join('');
+
+        return `<div class="inv-progress">
+            <p class="inv-progress-headline">${headline}…</p>
+            <ul class="inv-log-list">${lines}</ul>
+        </div>`;
+    }
+
+    function startInvestigationProgress($container, inv_id, entity, amt_a, amt_b) {
+        stopInvestigationProgress();
+        const steps = buildInvestigationSteps(inv_id, entity, amt_a, amt_b);
+        let activeIndex = 0;
+
+        const paint = () => {
+            $container.html(renderInvestigationProgress(steps, activeIndex));
+        };
+
+        paint();
+        investigationLogTimer = setInterval(() => {
+            if (activeIndex < steps.length - 1) {
+                activeIndex += 1;
+                paint();
+            }
+        }, 1200);
+    }
+
+    function stopInvestigationProgress() {
+        if (investigationLogTimer) {
+            clearInterval(investigationLogTimer);
+            investigationLogTimer = null;
+        }
     }
 
     /* ─── Open Case (Investigation) ────────────────────────────── */
@@ -634,31 +708,29 @@ $(function () {
         $status.removeClass('status-resolved status-error').addClass('status-investigating')
             .text(`Investigating ${inv_id}…`);
 
-        $('#reportContainer').html(`<div class="audit-empty">
-            <div class="spinner-border text-primary mb-3" style="width:26px;height:26px;border-width:2.5px"></div>
-            <p style="font-weight:700;color:var(--text-1);font-size:13px">Analysing variance…</p>
-            <p style="font-size:11.5px;color:var(--text-2)">Querying Qdrant &middot; Generating Audit Report</p>
-        </div>`);
+        startInvestigationProgress($('#reportContainer'), inv_id, entity, amt_a, amt_b);
 
         $.ajax({
             url: '/api/investigate', type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ invoice_id: inv_id, entity, amount_a: amt_a, amount_b: amt_b }),
             success: function (res) {
+                stopInvestigationProgress();
                 $('#reportContainer').html(marked.parse(res.report));
                 $status.removeClass('status-investigating').addClass('status-resolved').text('Resolved');
             },
             error: function (err) {
+                stopInvestigationProgress();
                 const detail = err.responseJSON?.detail || 'An unexpected error occurred.';
                 const statusCode = err.status;
                 const icon = statusCode === 503 && detail.includes('Offline')
                     ? '<i class="fa-solid fa-server" style="font-size:32px;color:var(--red);opacity:.4;margin-bottom:12px;display:block"></i>'
                     : '<i class="fa-solid fa-triangle-exclamation" style="font-size:32px;color:var(--amber);opacity:.6;margin-bottom:12px;display:block"></i>';
-                const heading = statusCode === 503 && detail.includes('Offline') ? 'Vector Store Offline'
-                    : statusCode === 503 ? 'Evidence Base Not Indexed'
-                        : 'Investigation Error';
+                const heading = statusCode === 503 && detail.includes('Offline') ? 'Evidence locker unavailable'
+                    : statusCode === 503 ? 'Evidence not indexed'
+                        : 'Investigation could not complete';
                 const hint = statusCode === 503
-                    ? '<br><small style="opacity:.65">Check Qdrant Cloud settings, then click "Sync Evidence Base".</small>'
+                    ? '<br><small style="opacity:.65">Refresh the evidence index from the header, then try again.</small>'
                     : '';
                 $('#reportContainer').html(`<div style="padding:22px">${icon}
                     <p style="font-weight:700;font-size:14px;color:var(--text-1);margin-bottom:7px">${heading}</p>
@@ -668,7 +740,8 @@ $(function () {
                 if (statusCode === 503) checkHealth();
             },
             complete: function () {
-                $btn.html('<i class="fa-solid fa-magnifying-glass"></i> Open Case').prop('disabled', false);
+                stopInvestigationProgress();
+                $btn.html('<i class="fa-solid fa-magnifying-glass"></i> Investigate').prop('disabled', false);
                 $('.btn-open-case').prop('disabled', false);
                 activeCase = null;
             }
@@ -676,7 +749,7 @@ $(function () {
     });
 
     function resetAnalysisBadge() {
-        $('#investigationStatus').text('Awaiting Selection')
+        $('#investigationStatus').text('Select an exception')
             .removeClass('status-investigating status-resolved status-error');
     }
 
@@ -684,18 +757,18 @@ $(function () {
     $('#indexDbBtn').on('click', function () {
         const $btn = $(this);
         $btn.prop('disabled', true);
-        $('#syncBtnText').text('Syncing…');
+        $('#syncBtnText').text('Indexing…');
 
         $.post('/api/index_db')
             .done((res) => {
                 const count = res.indexed_count ?? 0;
-                $('#syncBtnText').text(`Synced ${count}`);
+                $('#syncBtnText').text(`Indexed ${count} records`);
                 checkHealth();
             })
-            .fail(() => $('#syncBtnText').text('Sync Failed'))
+            .fail(() => $('#syncBtnText').text('Index failed'))
             .always(() => {
                 $btn.prop('disabled', false);
-                setTimeout(() => $('#syncBtnText').text('Sync Evidence Base'), 3000);
+                setTimeout(() => $('#syncBtnText').text('Refresh evidence index'), 3000);
             });
     });
 

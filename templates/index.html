@@ -4,62 +4,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sleuth | Financial Forensics Platform</title>
+    <meta name="theme-color" content="#3F6F63">
+    <title>Sleuth — Reconciliation Investigation</title>
     <meta name="description"
-        content="AI-powered forensic accounting — invoice capture, ledger reconciliation, and audit investigation.">
+        content="Enterprise reconciliation workspace — detect exceptions, investigate with evidence, and produce audit-ready outputs.">
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/app-theme.css">
 </head>
 
-<body>
+<body class="app-fullwidth">
 
-    <!-- ═══════════════════════════════ SIDEBAR ═══════════════════════════════ -->
-    <aside class="sidebar" id="sidebar">
-
-        <div class="sidebar-brand">
-            <div class="brand-mark"><i class="fa-solid fa-user-secret"></i></div>
-            <div>
-                <div class="brand-name">SLEUTH</div>
-                <div class="brand-tagline">Financial Forensics</div>
+    <header class="app-shell-header">
+        <div class="app-shell-brand">
+            <div class="brand-mark">S</div>
+            <div class="app-shell-brand-text">
+                <span class="brand-name">Sleuth</span>
+                <span class="brand-tagline">Ledger reconciliation</span>
             </div>
         </div>
-
-        <nav class="sidebar-nav">
-            <p class="nav-section-label">Navigation</p>
-
-            <button class="nav-item active" id="navAuditSuite" onclick="switchTab('analysis')">
-                <i class="fa-solid fa-magnifying-glass-chart nav-icon"></i>
-                <div class="nav-text">
-                    <span class="nav-title">Variance Analysis</span>
-                    <span class="nav-sub">Reconciliation &amp; Audit</span>
-                </div>
+        <div class="app-shell-actions">
+            <button id="indexDbBtn" class="btn-toolbar-sync" type="button">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span id="syncBtnText">Refresh evidence index</span>
             </button>
-        </nav>
-
-        <div class="sidebar-footer">
-            <button id="indexDbBtn" class="sync-btn">
-                <i class="fa-solid fa-database"></i>
-                <span id="syncBtnText">Sync Evidence Base</span>
+            <button class="btn-formula-cfg qdrant-status-btn" id="qdrantStatusBtn" onclick="checkHealth()"
+                title="Evidence locker connectivity">
+                <i class="fa-solid fa-database"></i> Evidence locker
             </button>
-            <div class="sidebar-meta">Qdrant &middot; GPT-4o &middot; FastAPI v2.2</div>
+            <span class="app-env-badge"><i class="fa-solid fa-shield-check"></i> Production demo</span>
+            <a href="/" class="app-topbar-link">Marketing site</a>
         </div>
+    </header>
 
-    </aside>
-
-    <!-- ══════════════════════════════ WORKSPACE ══════════════════════════════ -->
-    <main class="workspace">
+    <main class="workspace workspace-wide">
 
         <!-- System Health Banner -->
         <div class="sys-warning" id="sysWarning" style="display:none;" role="alert">
             <i class="fa-solid fa-triangle-exclamation sys-warning-icon"></i>
             <div class="sys-warning-body">
-                <strong id="sysWarningTitle">Vector Store Offline</strong>
-                <span id="sysWarningMsg">Qdrant is not reachable.</span>
+                <strong id="sysWarningTitle">Evidence locker unavailable</strong>
+                <span id="sysWarningMsg">Unable to reach the evidence index.</span>
             </div>
             <div class="sys-warning-actions">
                 <button class="sys-warning-retry" id="sysWarningRetry" onclick="checkHealth()">
@@ -322,17 +314,11 @@
     ══════════════════════════════════════════ -->
         <div class="tab-panel active" id="tab-analysis">
 
-            <div class="panel-header">
+            <div class="panel-header panel-header-hero">
                 <div>
                     <h1 class="panel-title">Ledger Reconciliation</h1>
-                    <p class="panel-subtitle">Upload both ledgers to compute variance, then open a case on any exception
-                        to run an AI investigation.</p>
-                </div>
-                <div class="panel-header-actions">
-                    <button class="btn-formula-cfg qdrant-status-btn" id="qdrantStatusBtn" onclick="checkHealth()"
-                        title="Check connection to Qdrant vector database">
-                        <i class="fa-solid fa-satellite-dish"></i> Check Connection
-                    </button>
+                    <p class="panel-subtitle">Compare vendor and ERP ledgers, surface exceptions, and run evidence-backed
+                        investigations with audit-ready output.</p>
                 </div>
             </div>
 
@@ -341,21 +327,21 @@
                 <div class="kpi-card kpi-total">
                     <i class="fa-solid fa-table-list kpi-icon"></i>
                     <div>
-                        <div class="kpi-label">Transaction Count</div>
+                        <div class="kpi-label">Transactions analyzed</div>
                         <div class="kpi-value" id="metricTotal">&mdash;</div>
                     </div>
                 </div>
                 <div class="kpi-card kpi-flagged">
                     <i class="fa-solid fa-circle-exclamation kpi-icon"></i>
                     <div>
-                        <div class="kpi-label">Exceptions Found</div>
+                        <div class="kpi-label">Open exceptions</div>
                         <div class="kpi-value" id="metricFlagged">&mdash;</div>
                     </div>
                 </div>
                 <div class="kpi-card kpi-risk">
-                    <i class="fa-solid fa-shield-exclamation kpi-icon"></i>
+                    <i class="fa-solid fa-chart-line kpi-icon"></i>
                     <div>
-                        <div class="kpi-label">Risk Exposure</div>
+                        <div class="kpi-label">Net variance exposure</div>
                         <div class="kpi-value" id="metricRisk">$&mdash;</div>
                     </div>
                 </div>
@@ -364,9 +350,9 @@
             <!-- Upload Controls -->
             <div class="ledger-upload-card">
                 <div class="ledger-test-data-note">
-                    <i class="fa-solid fa-circle-info"></i>
-                    For test data, access ledgers from
-                    <a href="https://drive.google.com/drive/folders/13Uw82-eCj-jtVsUfDPxWHDxQewzZrVZe?usp=sharing" id="testDataDriveLink" target="_blank" rel="noopener">this Drive link</a>.
+                    <i class="fa-solid fa-folder-open"></i>
+                    Sample ledger files for evaluation:
+                    <a href="https://drive.google.com/drive/folders/13Uw82-eCj-jtVsUfDPxWHDxQewzZrVZe?usp=sharing" id="testDataDriveLink" target="_blank" rel="noopener">Download sample datasets</a>
                 </div>
                 <form id="reconcileForm">
                     <div class="ledger-upload-row">
@@ -386,7 +372,7 @@
                             <input type="file" class="file-input" id="fileB" accept=".csv" required>
                         </div>
                         <button type="submit" class="btn-reconcile" id="reconcileBtn">
-                            <i class="fa-solid fa-scale-balanced"></i> Reconcile
+                            <i class="fa-solid fa-scale-balanced"></i> Run reconciliation
                         </button>
                     </div>
                 </form>
@@ -399,7 +385,7 @@
                 <div class="variance-panel">
                     <div class="variance-panel-header">
                         <span class="vp-title">
-                            <i class="fa-solid fa-list-ul"></i> Variance Log
+                            <i class="fa-solid fa-list-ul"></i> Exception log
                         </span>
                         <span class="vp-badge" id="boardCount"></span>
                     </div>
@@ -418,7 +404,7 @@
                                 <tr>
                                     <td colspan="5" class="empty-state">
                                         <i class="fa-regular fa-folder-open"></i>
-                                        Upload ledger files to begin reconciliation.
+                                        Upload both ledgers to populate the exception log.
                                     </td>
                                 </tr>
                             </tbody>
@@ -430,15 +416,14 @@
                 <div class="audit-panel">
                     <div class="audit-panel-header">
                         <span class="ap-title">
-                            <i class="fa-solid fa-file-waveform"></i> Audit Investigation
+                            <i class="fa-solid fa-file-shield"></i> Investigation report
                         </span>
-                        <span class="ap-status" id="investigationStatus">Awaiting Selection</span>
+                        <span class="ap-status" id="investigationStatus">Select an exception</span>
                     </div>
                     <div class="audit-panel-body" id="reportContainer">
                         <div class="audit-empty">
-                            <i class="fa-solid fa-user-secret audit-empty-icon"></i>
-                            <p>Select an exception from the Variance Log to<br>initiate an AI-assisted investigation.
-                            </p>
+                            <i class="fa-solid fa-magnifying-glass-chart audit-empty-icon"></i>
+                            <p>Select an exception from the variance log to generate a<br>root-cause analysis with evidence citations.</p>
                         </div>
                     </div>
                 </div>
