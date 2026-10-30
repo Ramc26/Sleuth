@@ -322,31 +322,6 @@
                 </div>
             </div>
 
-            <!-- KPI Row -->
-            <div class="kpi-row">
-                <div class="kpi-card kpi-total">
-                    <i class="fa-solid fa-table-list kpi-icon"></i>
-                    <div>
-                        <div class="kpi-label">Transactions analyzed</div>
-                        <div class="kpi-value" id="metricTotal">&mdash;</div>
-                    </div>
-                </div>
-                <div class="kpi-card kpi-flagged">
-                    <i class="fa-solid fa-circle-exclamation kpi-icon"></i>
-                    <div>
-                        <div class="kpi-label">Open exceptions</div>
-                        <div class="kpi-value" id="metricFlagged">&mdash;</div>
-                    </div>
-                </div>
-                <div class="kpi-card kpi-risk">
-                    <i class="fa-solid fa-chart-line kpi-icon"></i>
-                    <div>
-                        <div class="kpi-label">Net variance exposure</div>
-                        <div class="kpi-value" id="metricRisk">$&mdash;</div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Upload Controls -->
             <div class="ledger-upload-card">
                 <div class="ledger-test-data-note">
@@ -378,8 +353,35 @@
                 </form>
             </div>
 
+            <div id="reconcileProgress" class="reconcile-progress reconcile-block--hidden" aria-live="polite"></div>
+
+            <!-- KPI Row (after first successful reconcile) -->
+            <div class="kpi-row reconcile-block--hidden" id="reconcileKpiRow">
+                <div class="kpi-card kpi-total">
+                    <i class="fa-solid fa-table-list kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Transactions analyzed</div>
+                        <div class="kpi-value" id="metricTotal">&mdash;</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-flagged">
+                    <i class="fa-solid fa-circle-exclamation kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Open exceptions</div>
+                        <div class="kpi-value" id="metricFlagged">&mdash;</div>
+                    </div>
+                </div>
+                <div class="kpi-card kpi-risk">
+                    <i class="fa-solid fa-chart-line kpi-icon"></i>
+                    <div>
+                        <div class="kpi-label">Net variance exposure</div>
+                        <div class="kpi-value" id="metricRisk">$&mdash;</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Variance Log + Audit Investigation side-by-side -->
-            <div class="analysis-workspace">
+            <div class="analysis-workspace reconcile-block--hidden analysis-workspace--solo" id="analysisWorkspace">
 
                 <!-- Left: Variance Log (table) -->
                 <div class="variance-panel">
@@ -400,32 +402,20 @@
                                     <th></th>
                                 </tr>
                             </thead>
-                            <tbody id="boardTbody">
-                                <tr>
-                                    <td colspan="5" class="empty-state">
-                                        <i class="fa-regular fa-folder-open"></i>
-                                        Upload both ledgers to populate the exception log.
-                                    </td>
-                                </tr>
-                            </tbody>
+                            <tbody id="boardTbody"></tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Right: Audit Investigation panel -->
-                <div class="audit-panel">
+                <!-- Right: Investigation report (shown when Investigate is clicked) -->
+                <div class="audit-panel reconcile-block--hidden" id="auditPanel">
                     <div class="audit-panel-header">
                         <span class="ap-title">
                             <i class="fa-solid fa-file-shield"></i> Investigation report
                         </span>
                         <span class="ap-status" id="investigationStatus">Select an exception</span>
                     </div>
-                    <div class="audit-panel-body" id="reportContainer">
-                        <div class="audit-empty">
-                            <i class="fa-solid fa-magnifying-glass-chart audit-empty-icon"></i>
-                            <p>Select an exception from the variance log to generate a<br>root-cause analysis with evidence citations.</p>
-                        </div>
-                    </div>
+                    <div class="audit-panel-body" id="reportContainer"></div>
                 </div>
 
             </div><!-- /analysis-workspace -->
@@ -929,7 +919,7 @@
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/js/app.js?v=5"></script>
+    <script src="/static/js/app.js?v=7"></script>
 </body>
 
 </html>

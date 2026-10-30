@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import logging
+import threading
 import pandas as pd
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Optional
 import io
 
 from core.investigator import investigate_variance
+from core.investigation_jobs import InvestigationProgress, create_job, get_job, set_job_done, set_job_error
 from core.vector_store import index_evidence_to_qdrant, get_qdrant_status
 from core.invoice_processor import process_invoice_to_zoho_bill
 from core.payroll_engine import (
@@ -293,13 +295,7 @@ async def get_discrepancies(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/investigate")
-async def run_investigation(req: InvestigateRequest):
-    """
-    Runs the RAG-powered forensic investigation.
-    Returns a production-grade error if Qdrant is unreachable.
-    """
-    # ── Pre-flight: Qdrant reachability check ────────────────────
+def _investigate_preflight():
     health = get_qdrant_status()
     if not health["reachable"]:
         raise HTTPException(
@@ -314,28 +310,68 @@ async def run_investigation(req: InvestigateRequest):
         raise HTTPException(
             status_code=503,
             detail=(
-                "📭 Evidence Locker Empty — The Qdrant vector collection does not exist yet. "
-                "Click the '⚡ Sync Evidence Locker' button in the sidebar to index your evidence files first."
+                "Evidence locker empty — index evidence files before running investigations."
             ),
         )
 
-    # ── Run investigation ────────────────────────────────────────
+
+def _run_investigation_job(
+    job_id: str,
+    invoice_id: str,
+    entity: str,
+    amount_a: float,
+    amount_b: float,
+) -> None:
+    progress = InvestigationProgress(job_id)
     try:
-        report = investigate_variance(req.invoice_id, req.entity, req.amount_a, req.amount_b)
-        return {"status": "success", "report": report}
+        report = investigate_variance(
+            invoice_id,
+            entity,
+            amount_a,
+            amount_b,
+            progress=progress,
+        )
+        set_job_done(job_id, report)
     except Exception as e:
         err_msg = str(e)
-        # Detect common connection errors and surface a friendly message
+        logger.error(f"Investigation job {job_id} failed: {e}")
         if any(kw in err_msg.lower() for kw in ("connection", "refused", "connect", "timeout", "unreachable")):
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "Vector Store Offline — Lost connection to Qdrant mid-request. "
-                    "Verify Qdrant Cloud settings and try again."
-                ),
+            set_job_error(
+                job_id,
+                "Evidence locker unavailable — lost connection during investigation. Retry shortly.",
             )
-        logger.error(f"Investigation error: {e}")
-        raise HTTPException(status_code=500, detail=f"Investigation failed: {err_msg}")
+        else:
+            set_job_error(job_id, f"Investigation failed: {err_msg}")
+
+
+@app.post("/api/investigate")
+async def start_investigation(req: InvestigateRequest):
+    """Starts an async investigation; poll GET /api/investigate/{job_id} for live steps."""
+    _investigate_preflight()
+    job_id = create_job()
+    threading.Thread(
+        target=_run_investigation_job,
+        args=(job_id, req.invoice_id, req.entity, req.amount_a, req.amount_b),
+        daemon=True,
+    ).start()
+    return {"status": "running", "job_id": job_id}
+
+
+@app.get("/api/investigate/{job_id}")
+async def get_investigation_status(job_id: str):
+    """Returns investigation progress steps and final report when complete."""
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Investigation job not found or expired.")
+    payload = {
+        "status": job["status"],
+        "steps": job["steps"],
+    }
+    if job["status"] == "done":
+        payload["report"] = job["report"]
+    if job["status"] == "error":
+        payload["error"] = job["error"]
+    return payload
 
 
 # ─────────────────────────────────────────────

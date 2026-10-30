@@ -534,6 +534,39 @@ $(function () {
        TAB 2 — VARIANCE ANALYSIS
     ─────────────────────────────────────────────────────────────── */
 
+    function updateAnalysisLayout() {
+        const solo = $('#auditPanel').hasClass('reconcile-block--hidden');
+        $('#analysisWorkspace').toggleClass('analysis-workspace--solo', solo);
+    }
+
+    function hideReconcileResults() {
+        $('#reconcileKpiRow, #analysisWorkspace, #auditPanel').addClass('reconcile-block--hidden');
+        $('#boardTbody').empty();
+        $('#reportContainer').empty();
+        updateAnalysisLayout();
+        resetAnalysisBadge();
+    }
+
+    function showReconcileProgress(message, isError) {
+        const $p = $('#reconcileProgress');
+        $p.removeClass('reconcile-block--hidden reconcile-progress--error');
+        if (isError) $p.addClass('reconcile-progress--error');
+        $p.html(`<i class="fa-solid ${isError ? 'fa-triangle-exclamation' : 'fa-rotate fa-spin'}"></i><span>${message}</span>`);
+    }
+
+    function hideReconcileProgress() {
+        $('#reconcileProgress').addClass('reconcile-block--hidden').empty();
+    }
+
+    function showReconcileResults() {
+        hideReconcileProgress();
+        $('#reconcileKpiRow, #analysisWorkspace').removeClass('reconcile-block--hidden');
+        $('#auditPanel').addClass('reconcile-block--hidden');
+        $('#reportContainer').empty();
+        updateAnalysisLayout();
+        resetAnalysisBadge();
+    }
+
     $('#reconcileForm').on('submit', function (e) {
         e.preventDefault();
         const fileA = $('#fileA')[0].files[0];
@@ -546,22 +579,21 @@ $(function () {
 
         const $btn = $('#reconcileBtn');
         $btn.prop('disabled', true).html('<span class="spinner-border"></span> Reconciling…');
-        $('#boardTbody').html(`<tr><td colspan="5" class="empty-state">
-            <i class="fa-solid fa-rotate fa-spin"></i> Merging ledgers…</td></tr>`);
-        $('#reportContainer').html('<div class="audit-empty"><i class="fa-solid fa-magnifying-glass-chart audit-empty-icon"></i><p>Select an exception from the exception log<br>to generate a root-cause analysis with evidence citations.</p></div>');
-        resetAnalysisBadge();
+        hideReconcileResults();
+        showReconcileProgress('Merging ledgers and computing exceptions…');
 
         $.ajax({
             url: '/api/reconcile', type: 'POST',
             data: fd, processData: false, contentType: false,
             success: function (res) {
+                showReconcileResults();
                 updateKPIs(res.summary);
                 renderVarianceLog(res.data);
             },
             error: function (err) {
+                hideReconcileResults();
                 const detail = err.responseJSON?.detail || 'Reconciliation failed.';
-                $('#boardTbody').html(`<tr><td colspan="5" class="empty-state" style="color:var(--red)">
-                    <i class="fa-solid fa-triangle-exclamation"></i> ${detail}</td></tr>`);
+                showReconcileProgress(detail, true);
             },
             complete: () => $btn.prop('disabled', false).html('<i class="fa-solid fa-scale-balanced"></i> Run reconciliation')
         });
@@ -612,45 +644,30 @@ $(function () {
         });
     }
 
-    /* ─── Investigation progress log ───────────────────────────── */
-    let investigationLogTimer = null;
+    /* ─── Investigation progress (poll backend) ────────────────── */
+    let investigationPollTimer = null;
 
-    function investigationVarianceLabel(amt_a, amt_b) {
-        const delta = Math.abs((amt_a || 0) - (amt_b || 0));
-        return '$' + delta.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+    function renderInvestigationProgressFromServer(steps) {
+        if (!steps || !steps.length) {
+            return `<div class="inv-progress"><p class="inv-progress-headline">Starting investigation…</p></div>`;
+        }
+        const activeStep = steps.find(s => s.state === 'active');
+        const lastDone = [...steps].reverse().find(s => s.state === 'done');
+        const headline = (activeStep || lastDone || steps[0]).text;
 
-    function buildInvestigationSteps(inv_id, entity, amt_a, amt_b) {
-        const variance = investigationVarianceLabel(amt_a, amt_b);
-        return [
-            { phase: 'Init', text: 'Initializing investigation case', meta: `${inv_id} · ${entity}` },
-            { phase: 'Parse', text: 'Parsing ledger variance', meta: `Sub-ledger delta ${variance} marked as exception` },
-            { phase: 'Search', text: 'Searching evidence locker', meta: 'Semantic retrieval over emails, threads, and attachments' },
-            { phase: 'Rank', text: 'Ranking candidate evidence', meta: 'Scoring by relevance, counterparty, and document date' },
-            { phase: 'Match', text: 'Cross-referencing source systems', meta: 'PO lines, goods receipt, and approval workflow' },
-            { phase: 'Chain', text: 'Building evidence chain', meta: 'Linking citations to variance timeline' },
-            { phase: 'Cause', text: 'Evaluating root-cause hypotheses', meta: 'Timing · quantity · price · duplicate posting' },
-            { phase: 'Fix', text: 'Drafting recommended remediation', meta: 'Accrual, adjustment entry, and control note' },
-            { phase: 'Report', text: 'Generating audit-ready report', meta: 'Executive summary and proposed journal entry' },
-        ];
-    }
-
-    function renderInvestigationProgress(steps, activeIndex) {
-        const headline = steps[activeIndex]?.text || 'Processing…';
-        const lines = steps.map((step, i) => {
-            let state = 'pending';
-            if (i < activeIndex) state = 'done';
-            else if (i === activeIndex) state = 'active';
+        const lines = steps.map(step => {
+            const state = step.state || 'pending';
             const icon = state === 'done'
                 ? '<i class="fa-solid fa-circle-check"></i>'
                 : state === 'active'
                     ? '<span class="inv-log-spinner"></span>'
                     : '<i class="fa-regular fa-circle"></i>';
+            const meta = step.meta ? `<span class="inv-log-meta">${step.meta}</span>` : '';
             return `<li class="inv-log-line inv-log-${state}">
                 <span class="inv-log-icon">${icon}</span>
                 <span class="inv-log-body">
                     <span class="inv-log-text">${step.text}</span>
-                    <span class="inv-log-meta">${step.meta}</span>
+                    ${meta}
                 </span>
             </li>`;
         }).join('');
@@ -661,29 +678,68 @@ $(function () {
         </div>`;
     }
 
-    function startInvestigationProgress($container, inv_id, entity, amt_a, amt_b) {
-        stopInvestigationProgress();
-        const steps = buildInvestigationSteps(inv_id, entity, amt_a, amt_b);
-        let activeIndex = 0;
-
-        const paint = () => {
-            $container.html(renderInvestigationProgress(steps, activeIndex));
-        };
-
-        paint();
-        investigationLogTimer = setInterval(() => {
-            if (activeIndex < steps.length - 1) {
-                activeIndex += 1;
-                paint();
-            }
-        }, 1200);
+    function paintInvestigationSteps(steps) {
+        $('#reportContainer').html(renderInvestigationProgressFromServer(steps));
     }
 
-    function stopInvestigationProgress() {
-        if (investigationLogTimer) {
-            clearInterval(investigationLogTimer);
-            investigationLogTimer = null;
+    function wrapReportSections(html) {
+        const root = document.createElement('div');
+        root.innerHTML = html;
+        const out = document.createElement('div');
+        out.className = 'audit-report';
+        let section = null;
+
+        for (const node of [...root.childNodes]) {
+            if (node.nodeType === Node.ELEMENT_NODE && node.nodeName === 'H3') {
+                section = document.createElement('section');
+                section.className = 'report-section';
+                out.appendChild(section);
+                section.appendChild(node);
+            } else if (section) {
+                section.appendChild(node);
+            } else {
+                out.appendChild(node);
+            }
         }
+        return out.innerHTML;
+    }
+
+    function renderInvestigationReport(markdown) {
+        return wrapReportSections(marked.parse(markdown));
+    }
+
+    function stopInvestigationPolling() {
+        if (investigationPollTimer) {
+            clearInterval(investigationPollTimer);
+            investigationPollTimer = null;
+        }
+    }
+
+    function pollInvestigationJob(jobId, onDone, onError) {
+        stopInvestigationPolling();
+
+        const fetchStatus = () => {
+            $.getJSON(`/api/investigate/${jobId}`)
+                .done(data => {
+                    if (data.steps) paintInvestigationSteps(data.steps);
+
+                    if (data.status === 'done') {
+                        stopInvestigationPolling();
+                        onDone(data.report);
+                    } else if (data.status === 'error') {
+                        stopInvestigationPolling();
+                        onError(data.error || 'Investigation failed.');
+                    }
+                })
+                .fail(xhr => {
+                    stopInvestigationPolling();
+                    const detail = xhr.responseJSON?.detail || 'Lost connection to investigation service.';
+                    onError(detail);
+                });
+        };
+
+        fetchStatus();
+        investigationPollTimer = setInterval(fetchStatus, 450);
     }
 
     /* ─── Open Case (Investigation) ────────────────────────────── */
@@ -708,39 +764,68 @@ $(function () {
         $status.removeClass('status-resolved status-error').addClass('status-investigating')
             .text(`Investigating ${inv_id}…`);
 
-        startInvestigationProgress($('#reportContainer'), inv_id, entity, amt_a, amt_b);
+        $('#auditPanel').removeClass('reconcile-block--hidden');
+        updateAnalysisLayout();
+        paintInvestigationSteps([]);
+
+        const showInvestigationError = (detail, statusCode) => {
+            const icon = statusCode === 503 && detail.includes('Offline')
+                ? '<i class="fa-solid fa-server" style="font-size:32px;color:var(--red);opacity:.4;margin-bottom:12px;display:block"></i>'
+                : '<i class="fa-solid fa-triangle-exclamation" style="font-size:32px;color:var(--amber);opacity:.6;margin-bottom:12px;display:block"></i>';
+            const heading = statusCode === 503 && detail.includes('Offline') ? 'Evidence locker unavailable'
+                : statusCode === 503 ? 'Evidence not indexed'
+                    : 'Investigation could not complete';
+            const hint = statusCode === 503
+                ? '<br><small style="opacity:.65">Refresh the evidence index from the header, then try again.</small>'
+                : '';
+            $('#reportContainer').html(`<div style="padding:22px">${icon}
+                <p style="font-weight:700;font-size:14px;color:var(--text-1);margin-bottom:7px">${heading}</p>
+                <p style="font-size:12.5px;color:var(--text-2);line-height:1.65">${detail}${hint}</p>
+            </div>`);
+            $status.removeClass('status-investigating').addClass('status-error').text('Error');
+            if (statusCode === 503) checkHealth();
+        };
 
         $.ajax({
             url: '/api/investigate', type: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({ invoice_id: inv_id, entity, amount_a: amt_a, amount_b: amt_b }),
             success: function (res) {
-                stopInvestigationProgress();
-                $('#reportContainer').html(marked.parse(res.report));
-                $status.removeClass('status-investigating').addClass('status-resolved').text('Resolved');
+                const finishInvestigationUi = () => {
+                    $btn.html('<i class="fa-solid fa-magnifying-glass"></i> Investigate').prop('disabled', false);
+                    $('.btn-open-case').prop('disabled', false);
+                    activeCase = null;
+                };
+
+                if (res.report && !res.job_id) {
+                    $('#reportContainer').html(renderInvestigationReport(res.report));
+                    $status.removeClass('status-investigating').addClass('status-resolved').text('Resolved');
+                    finishInvestigationUi();
+                    return;
+                }
+
+                if (!res.job_id) {
+                    showInvestigationError('Invalid response from investigation service.', 500);
+                    finishInvestigationUi();
+                    return;
+                }
+
+                pollInvestigationJob(
+                    res.job_id,
+                    function (report) {
+                        $('#reportContainer').html(renderInvestigationReport(report));
+                        $status.removeClass('status-investigating').addClass('status-resolved').text('Resolved');
+                        finishInvestigationUi();
+                    },
+                    function (message) {
+                        showInvestigationError(message, message.includes('locker') ? 503 : 500);
+                        finishInvestigationUi();
+                    }
+                );
             },
             error: function (err) {
-                stopInvestigationProgress();
                 const detail = err.responseJSON?.detail || 'An unexpected error occurred.';
-                const statusCode = err.status;
-                const icon = statusCode === 503 && detail.includes('Offline')
-                    ? '<i class="fa-solid fa-server" style="font-size:32px;color:var(--red);opacity:.4;margin-bottom:12px;display:block"></i>'
-                    : '<i class="fa-solid fa-triangle-exclamation" style="font-size:32px;color:var(--amber);opacity:.6;margin-bottom:12px;display:block"></i>';
-                const heading = statusCode === 503 && detail.includes('Offline') ? 'Evidence locker unavailable'
-                    : statusCode === 503 ? 'Evidence not indexed'
-                        : 'Investigation could not complete';
-                const hint = statusCode === 503
-                    ? '<br><small style="opacity:.65">Refresh the evidence index from the header, then try again.</small>'
-                    : '';
-                $('#reportContainer').html(`<div style="padding:22px">${icon}
-                    <p style="font-weight:700;font-size:14px;color:var(--text-1);margin-bottom:7px">${heading}</p>
-                    <p style="font-size:12.5px;color:var(--text-2);line-height:1.65">${detail}${hint}</p>
-                </div>`);
-                $status.removeClass('status-investigating').addClass('status-error').text('Error');
-                if (statusCode === 503) checkHealth();
-            },
-            complete: function () {
-                stopInvestigationProgress();
+                showInvestigationError(detail, err.status);
                 $btn.html('<i class="fa-solid fa-magnifying-glass"></i> Investigate').prop('disabled', false);
                 $('.btn-open-case').prop('disabled', false);
                 activeCase = null;

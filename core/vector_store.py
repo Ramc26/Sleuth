@@ -142,35 +142,46 @@ def index_evidence_to_qdrant():
     logger.info("Indexing complete.")
     return len(points)
 
-def search_evidence(inv_id, entity, variance):
-    """Performs a semantic vector search for relevant evidence."""
-    # We craft a search query that looks for the semantic meaning of the discrepancy
-    search_query = f"Explanation or notice regarding invoice {inv_id}, entity {entity}, or an amount of {abs(variance)}"
-    
+def search_evidence_detailed(inv_id, entity, variance):
+    """
+    Semantic vector search; returns query text, structured hits, and formatted context blocks.
+    """
+    search_query = (
+        f"Explanation or notice regarding invoice {inv_id}, entity {entity}, "
+        f"or an amount of {abs(variance)}"
+    )
+
     logger.info(f"Querying Qdrant: '{search_query}'")
-    
+
     if not qdrant_client.collection_exists(COLLECTION_NAME):
         logger.warning("Collection not found. Index evidence before searching.")
-        return []
+        return search_query, [], []
 
     query_embedding = _embed_texts([search_query])[0]
 
-    # Retrieve the top 3 most semantically similar documents.
     results = qdrant_client.query_points(
         collection_name=COLLECTION_NAME,
         query=query_embedding,
         using=QDRANT_VECTOR_NAME,
-        limit=3,
+        limit=5,
         with_payload=True,
     ).points
-    
+
+    hits = []
     relevant_evidence = []
     for hit in results:
         payload = hit.payload or {}
         text = payload.get("text", "")
         filename = payload.get("filename", payload.get("source", "Evidence Locker"))
-        if hit.score > 0.50: 
+        hits.append({"filename": filename, "score": float(hit.score), "text": text})
+        if hit.score > 0.50:
             relevant_evidence.append(f"--- SOURCE FILE: {filename} ---\n{text}")
             logger.info(f"Vector Match Found: {filename} (Score: {hit.score:.2f})")
-            
-    return relevant_evidence
+
+    return search_query, hits, relevant_evidence
+
+
+def search_evidence(inv_id, entity, variance):
+    """Performs a semantic vector search for relevant evidence."""
+    _, _, blocks = search_evidence_detailed(inv_id, entity, variance)
+    return blocks

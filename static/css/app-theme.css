@@ -22,7 +22,7 @@
     --shadow-md: 0 8px 24px rgba(28, 33, 30, 0.08);
     --radius: 12px;
     --radius-lg: 18px;
-    --content-max: 1320px;
+    --page-gutter: clamp(20px, 2.5vw, 40px);
 }
 
 html {
@@ -47,7 +47,7 @@ body.app-fullwidth {
     justify-content: space-between;
     gap: 24px;
     flex-wrap: wrap;
-    padding: 20px clamp(24px, 4vw, 48px);
+    padding: 20px var(--page-gutter);
     background: #1a2f2a;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     position: sticky;
@@ -171,11 +171,13 @@ body.app-fullwidth {
 /* ── Workspace layout — scroll naturally, no cramming ─────────── */
 .workspace.workspace-wide {
     margin-left: 0;
-    max-width: var(--content-max);
-    margin-inline: auto;
-    padding: 40px clamp(24px, 4vw, 48px) 64px;
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding: 36px var(--page-gutter) 64px;
     min-height: calc(100vh - 88px);
     display: block;
+    box-sizing: border-box;
 }
 
 #tab-analysis.tab-panel.active {
@@ -209,8 +211,9 @@ body.app-fullwidth {
 
 /* KPIs */
 #tab-analysis .kpi-row {
-    gap: 20px;
+    gap: clamp(12px, 1.5vw, 20px);
     margin-bottom: 32px;
+    width: 100%;
 }
 
 #tab-analysis .kpi-card {
@@ -236,8 +239,10 @@ body.app-fullwidth {
 
 /* Upload card */
 #tab-analysis .ledger-upload-card {
-    padding: 28px 32px;
+    padding: 28px clamp(20px, 2.5vw, 36px);
     margin-bottom: 36px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #tab-analysis .ledger-test-data-note {
@@ -271,11 +276,60 @@ body.app-fullwidth {
     padding: 14px 28px;
 }
 
-/* Analysis split — taller panels, page scrolls */
+/* Analysis split — use full viewport width */
 #tab-analysis .analysis-workspace {
-    grid-template-columns: 1fr 1.15fr;
-    gap: 28px;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: clamp(16px, 2vw, 28px);
+    align-items: start;
+    width: 100%;
+}
+
+#tab-analysis .variance-panel,
+#tab-analysis .audit-panel {
+    min-width: 0;
+    width: 100%;
+}
+
+#tab-analysis .variance-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+#tab-analysis .variance-table th:nth-child(1),
+#tab-analysis .variance-table td:nth-child(1) {
+    width: 16%;
+}
+
+#tab-analysis .variance-table th:nth-child(2),
+#tab-analysis .variance-table td:nth-child(2) {
+    width: 24%;
+}
+
+#tab-analysis .variance-table th:nth-child(3),
+#tab-analysis .variance-table td:nth-child(3) {
+    width: 18%;
+}
+
+#tab-analysis .variance-table th:nth-child(4),
+#tab-analysis .variance-table td:nth-child(4) {
+    width: 14%;
+}
+
+#tab-analysis .variance-table th:nth-child(5),
+#tab-analysis .variance-table td:nth-child(5) {
+    width: 28%;
+}
+
+#tab-analysis .variance-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#tab-analysis .variance-table td:nth-child(2) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 #tab-analysis .variance-panel-header,
@@ -299,7 +353,7 @@ body.app-fullwidth {
 
 #tab-analysis .variance-panel-body {
     max-height: none;
-    min-height: 420px;
+    min-height: 0;
 }
 
 #tab-analysis .variance-table th {
@@ -338,8 +392,14 @@ body.app-fullwidth {
 
 #tab-analysis .audit-panel-body {
     max-height: none;
-    min-height: 420px;
-    padding: 28px 32px;
+    min-height: 0;
+    padding: 24px clamp(20px, 2.5vw, 32px) 32px;
+    background: var(--bg-subtle);
+}
+
+#tab-analysis .audit-panel-body blockquote,
+#tab-analysis .audit-panel-body table {
+    max-width: 100%;
 }
 
 #tab-analysis .ap-status {
@@ -351,20 +411,146 @@ body.app-fullwidth {
     font-size: 1rem;
 }
 
-#tab-analysis .audit-panel-body h3 {
-    font-size: 1.0625rem;
-    margin: 28px 0 14px;
+/* Investigation report — readable sections */
+#tab-analysis .audit-panel-body .audit-report {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-bottom: 8px;
 }
 
-#tab-analysis .audit-panel-body p,
-#tab-analysis .audit-panel-body ul li {
-    font-size: 0.9375rem;
+#tab-analysis .audit-panel-body .report-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 28px;
+}
+
+#tab-analysis .audit-panel-body .report-section:last-child {
+    margin-bottom: 0;
+}
+
+#tab-analysis .audit-panel-body .report-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-1);
+    margin: 0;
+    padding: 16px 22px;
+    background: linear-gradient(180deg, #fff 0%, var(--bg-subtle) 100%);
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+}
+
+#tab-analysis .audit-panel-body .report-section > :not(h3) {
+    padding-left: 22px;
+    padding-right: 22px;
+}
+
+#tab-analysis .audit-panel-body .report-section > :not(h3):last-child {
+    padding-bottom: 20px;
+}
+
+#tab-analysis .audit-panel-body .report-section > p:first-of-type,
+#tab-analysis .audit-panel-body .report-section > ul:first-of-type {
+    padding-top: 18px;
+    margin-top: 0;
+}
+
+#tab-analysis .audit-panel-body .report-section p,
+#tab-analysis .audit-panel-body .report-section ul li {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--text-1);
+    margin-bottom: 10px;
+}
+
+#tab-analysis .audit-panel-body .report-section ul {
+    list-style: none;
+    padding-top: 18px;
+    padding-bottom: 4px;
+    margin: 0;
+}
+
+#tab-analysis .audit-panel-body .report-section ul li {
+    padding-left: 1.1rem;
+    position: relative;
+    margin-bottom: 12px;
+}
+
+#tab-analysis .audit-panel-body .report-section ul li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+#tab-analysis .audit-panel-body .report-section strong {
+    font-weight: 700;
+    color: var(--text-1);
+}
+
+#tab-analysis .audit-panel-body .report-section blockquote {
+    margin: 16px 22px 20px;
+    padding: 18px 20px;
+    font-size: 1rem;
     line-height: 1.65;
+    color: var(--text-1);
+    background: var(--accent-light);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 12px 12px 0;
 }
 
-#tab-analysis .audit-panel-body blockquote {
+#tab-analysis .audit-panel-body .report-section code {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    background: var(--bg-subtle);
+    color: var(--text-1);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    word-break: break-all;
+}
+
+#tab-analysis .audit-panel-body .report-section table {
+    width: calc(100% - 44px);
+    margin: 16px 22px 20px;
     font-size: 0.9375rem;
-    padding: 16px 20px;
+    border-collapse: collapse;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#tab-analysis .audit-panel-body .report-section th {
+    background: var(--bg-subtle);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-1);
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+#tab-analysis .audit-panel-body .report-section td {
+    padding: 12px 14px;
+    color: var(--text-1);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9375rem;
+}
+
+#tab-analysis .audit-panel-body .report-section td:not(:first-child) {
+    text-align: right;
+    font-family: var(--mono);
+    font-weight: 600;
 }
 
 .kpi-total {
@@ -408,6 +594,43 @@ body.app-fullwidth {
 .qdrant-status-btn.qdrant-checking {
     border-color: var(--green-border);
     color: var(--accent);
+}
+
+.reconcile-block--hidden {
+    display: none !important;
+}
+
+.reconcile-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    padding: 16px 20px;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-2);
+    box-shadow: var(--shadow-sm);
+}
+
+.reconcile-progress i {
+    color: var(--accent);
+}
+
+.reconcile-progress--error {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.reconcile-progress--error i {
+    color: #dc2626;
+}
+
+#tab-analysis .analysis-workspace.analysis-workspace--solo {
+    grid-template-columns: 1fr;
 }
 
 /* Investigation progress log */
